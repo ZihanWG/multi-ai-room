@@ -1,5 +1,5 @@
-streamlit
-openai
-anthropic
-google-genai
-python-dotenv
+streamlit==1.58.0
+openai==2.43.0
+anthropic==0.111.0
+google-genai==2.9.0
+python-dotenv==1.2.2

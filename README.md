@@ -1,6 +1,10 @@
 # 多 AI 讨论室
 
-一个本地可运行的 Streamlit Web 应用。用户输入问题后，系统会按顺序调用多个 AI Agent：
+[![CI](https://github.com/ZihanWG/multi-ai-room/actions/workflows/ci.yml/badge.svg)](https://github.com/ZihanWG/multi-ai-room/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+一个基于 Python 3.12 和 Streamlit 的本地多 Agent 讨论应用。用户输入问题后，系统会按顺序调用多个 AI Agent：
 
 1. OpenAI GPT Agent：严谨分析、逻辑推理、识别隐含假设
 2. Anthropic Claude Agent：结构化表达、风险提示、保守判断
@@ -22,6 +26,8 @@
 - 页面提供角色看板、讨论过程时间线、进度条和最终结论面板
 - 侧边栏可以控制是否显示讨论过程、是否默认展开 Agent 原文
 - 讨论过程展示的是面向用户的阶段记录和分析摘要，不是模型隐藏思维链
+- 支持用 Python 标准库 `unittest` 做基础测试
+- 提供 GitHub Actions CI 配置
 
 ## 项目结构
 
@@ -30,8 +36,27 @@ multi-ai-room/
 ├── app.py
 ├── requirements.txt
 ├── README.md
+├── LICENSE
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── Makefile
+├── .editorconfig
+├── .python-version
 ├── .env.example
+├── .gitattributes
 ├── .gitignore
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── config.yml
+│   │   └── feature_request.yml
+│   ├── pull_request_template.md
+│   └── workflows/
+│       └── ci.yml
+├── docs/
+│   └── ARCHITECTURE.md
 ├── agents/
 │   ├── __init__.py
 │   ├── base.py
@@ -40,25 +65,36 @@ multi-ai-room/
 │   ├── gemini_agent.py
 │   ├── critic_agent.py
 │   └── moderator_agent.py
-└── utils/
+├── utils/
+│   ├── __init__.py
+│   └── config.py
+└── tests/
     ├── __init__.py
-    └── config.py
+    ├── test_agents_missing_keys.py
+    └── test_config.py
 ```
 
 ## 安装步骤
 
-建议使用 Python 3.11 或更高版本。
+建议使用 Python 3.12。当前项目在 Python 3.12.10 下验证通过。
 
 ```bash
 cd multi-ai-room
-python3.11 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-如果本机没有 `python3.11` 命令，也可以使用：
+也可以使用 Makefile：
 
 ```bash
+make install
+```
+
+如果本机没有 `python3.12` 命令，也可以使用系统默认 Python 3，但建议确认版本：
+
+```bash
+python3 --version
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -86,10 +122,26 @@ GEMINI_MODEL=gemini-1.5-flash
 
 可以只配置部分 API Key。未配置的模型会在对应 Agent 输出区域显示错误提示，不会让应用整体崩溃。
 
+## 依赖版本
+
+`requirements.txt` 固定了直接依赖版本，方便本地和 CI 复现：
+
+- `streamlit`
+- `openai`
+- `anthropic`
+- `google-genai`
+- `python-dotenv`
+
 ## 如何运行
 
 ```bash
 streamlit run app.py
+```
+
+或使用：
+
+```bash
+make run
 ```
 
 启动后，浏览器会打开本地地址，通常是：
@@ -106,12 +158,41 @@ http://localhost:8501
 4. 页面应依次显示讨论过程、GPT Agent、Claude Agent、Gemini Agent、Critic Agent 和最终结论。
 5. 如果没有配置某个 API Key，对应区域应显示类似「缺少 OPENAI_API_KEY，请在 .env 文件中配置。」的提示。
 
+## 开发与测试
+
+提交改动前建议运行：
+
+```bash
+python -m py_compile app.py agents/*.py utils/*.py tests/*.py
+python -m unittest discover -s tests
+```
+
+也可以使用：
+
+```bash
+make check
+```
+
+GitHub Actions 会在 `main` 分支 push 和 pull request 上执行同样的基础检查。
+
+## 架构说明
+
+Agent 调用顺序、状态保存和外部服务边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
 ## 界面说明
 
 - 顶部「讨论席位」展示每个 Agent 的职责和本轮目标。
 - 「讨论过程」区域会随着调用进度更新，展示每个 Agent 的输入来源、阶段状态和输出摘要。
 - 每个 Agent 的完整原文可以默认展开，也可以在侧边栏切换为手动展开。
 - 底部「最终结论」会突出显示 Moderator Agent 的汇总结果。
+
+## 隐私与费用说明
+
+- 本项目是本地应用，但会根据你的 `.env` 配置调用 OpenAI、Anthropic 和 Google Gemini。
+- 用户输入的问题和各 Agent 的中间回答会发送给对应模型服务商。
+- 不要输入不应发送给第三方模型服务的机密信息、个人敏感信息或受保护数据。
+- 模型调用可能产生 API 费用，费用由你配置的 API Key 所属账号承担。
+- `.env` 已被 `.gitignore` 忽略，请不要提交真实 API Key。
 
 ## 常见问题
 
@@ -185,3 +266,20 @@ git status
 ```
 
 只提交 `.env.example`，不要提交真实密钥。
+
+## 参与贡献
+
+贡献流程和本地开发建议见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+行为准则见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
+
+## 变更记录
+
+项目变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+## 安全
+
+安全报告方式和 API Key 注意事项见 [SECURITY.md](SECURITY.md)。
+
+## 许可证
+
+本项目使用 MIT License，详见 [LICENSE](LICENSE)。
