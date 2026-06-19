@@ -71,11 +71,23 @@ AGENT_PROFILES = [
     ),
 ]
 
+SESSION_OUTPUTS_KEY = "discussion_outputs"
+SESSION_QUESTION_KEY = "discussion_question"
+
 
 def get_profile(key: str) -> AgentProfile:
     """Return the UI profile for an agent key."""
 
     return next(profile for profile in AGENT_PROFILES if profile.key == key)
+
+
+def initialize_session_state() -> None:
+    """Initialize Streamlit session state used across reruns."""
+
+    if SESSION_OUTPUTS_KEY not in st.session_state:
+        st.session_state[SESSION_OUTPUTS_KEY] = {}
+    if SESSION_QUESTION_KEY not in st.session_state:
+        st.session_state[SESSION_QUESTION_KEY] = ""
 
 
 def apply_page_styles() -> None:
@@ -374,6 +386,40 @@ def render_final_answer(content: str) -> None:
         st.markdown(content or "Moderator Agent 无输出")
 
 
+def render_saved_discussion(
+    question: str,
+    outputs: dict[str, str],
+    *,
+    show_process: bool,
+    expand_outputs: bool,
+) -> None:
+    """Render the previously completed discussion after a Streamlit rerun."""
+
+    if not outputs:
+        return
+
+    st.divider()
+    st.markdown("## 上次讨论结果")
+    with st.container(border=True):
+        st.markdown("**原始问题**")
+        st.markdown(question or "_未记录原始问题_")
+
+    if show_process:
+        timeline_placeholder = st.empty()
+        render_discussion_timeline(timeline_placeholder, outputs, active_key=None)
+
+    for profile in AGENT_PROFILES:
+        if profile.key in outputs:
+            render_agent_output(
+                profile,
+                outputs[profile.key],
+                expanded=expand_outputs,
+            )
+
+    render_summary_panel(outputs)
+    render_final_answer(outputs.get("Moderator Agent", ""))
+
+
 def render_sidebar_controls() -> tuple[bool, bool]:
     """Render sidebar options and return UI preferences."""
 
@@ -514,6 +560,7 @@ def main() -> None:
     """Render the Streamlit app."""
 
     st.set_page_config(page_title="多 AI 讨论室", page_icon="AI", layout="wide")
+    initialize_session_state()
     apply_page_styles()
     show_process, expand_outputs = render_sidebar_controls()
     render_hero()
@@ -540,14 +587,26 @@ def main() -> None:
                 """
             )
 
+    discussion_started = False
     if st.button("开始讨论", type="primary"):
         cleaned_question = question.strip()
         if not cleaned_question:
             st.warning("请先输入一个问题。")
             return
 
-        run_discussion(
+        outputs = run_discussion(
             cleaned_question,
+            show_process=show_process,
+            expand_outputs=expand_outputs,
+        )
+        st.session_state[SESSION_QUESTION_KEY] = cleaned_question
+        st.session_state[SESSION_OUTPUTS_KEY] = outputs.copy()
+        discussion_started = True
+
+    if not discussion_started:
+        render_saved_discussion(
+            st.session_state[SESSION_QUESTION_KEY],
+            st.session_state[SESSION_OUTPUTS_KEY],
             show_process=show_process,
             expand_outputs=expand_outputs,
         )
