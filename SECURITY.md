@@ -41,3 +41,7 @@ If you find a security issue, use GitHub private vulnerability reporting. If tha
 本项目会根据配置调用 OpenAI、Anthropic 和 Google Gemini。用户输入会发送到对应服务商。请不要输入不应发送给第三方模型服务的机密信息。
 
 This project calls OpenAI, Anthropic, and Google Gemini based on configuration. User input is sent to the corresponding provider. Do not enter confidential information that should not be sent to third-party model services.
+
+当 `DEMO_MODE=true` 时，应用只返回本地模拟内容，不会调用外部模型服务。
+
+When `DEMO_MODE=true`, the app returns local sample content only and does not call external model services.

@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import streamlit as st
 
 from agents import ClaudeAgent, CriticAgent, GeminiAgent, ModeratorAgent, OpenAIAgent
+from utils.config import get_settings
+from utils.export import build_discussion_markdown
 
 
 @dataclass(frozen=True)
@@ -386,6 +388,25 @@ def render_final_answer(content: str) -> None:
         st.markdown(content or "Moderator Agent 无输出")
 
 
+def render_export_button(question: str, outputs: dict[str, str], *, key: str) -> None:
+    """Render a Markdown download button for a discussion result."""
+
+    if not outputs:
+        return
+
+    st.download_button(
+        label="导出 Markdown",
+        data=build_discussion_markdown(
+            question,
+            outputs,
+            agent_order=[profile.key for profile in AGENT_PROFILES],
+        ),
+        file_name="multi-ai-room-discussion.md",
+        mime="text/markdown",
+        key=key,
+    )
+
+
 def render_saved_discussion(
     question: str,
     outputs: dict[str, str],
@@ -418,15 +439,20 @@ def render_saved_discussion(
 
     render_summary_panel(outputs)
     render_final_answer(outputs.get("Moderator Agent", ""))
+    render_export_button(question, outputs, key="download_saved_discussion")
 
 
 def render_sidebar_controls() -> tuple[bool, bool]:
     """Render sidebar options and return UI preferences."""
 
     with st.sidebar:
+        settings = get_settings()
         st.header("显示设置")
         show_process = st.toggle("显示讨论过程", value=True)
         expand_outputs = st.toggle("默认展开 Agent 原文", value=True)
+
+        if settings.demo_mode:
+            st.info("Demo 模式已启用：不会调用外部模型 API。")
 
         st.divider()
         st.markdown("#### 说明")
@@ -552,6 +578,7 @@ def run_discussion(
 
     render_summary_panel(outputs)
     render_final_answer(outputs["Moderator Agent"])
+    render_export_button(question, outputs, key="download_current_discussion")
 
     return outputs
 

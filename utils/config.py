@@ -16,6 +16,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 DEFAULT_OPENAI_MODEL = "gpt-4.1"
 DEFAULT_CLAUDE_MODEL = "claude-3-5-sonnet-latest"
 DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"
+TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,13 @@ class Settings:
     openai_model: str
     claude_model: str
     gemini_model: str
+    demo_mode: bool
+
+
+def is_truthy(value: str | None) -> bool:
+    """Return whether an environment value should be treated as enabled."""
+
+    return (value or "").strip().lower() in TRUTHY_ENV_VALUES
 
 
 def get_settings() -> Settings:
@@ -44,4 +52,5 @@ def get_settings() -> Settings:
         openai_model=os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
         claude_model=os.getenv("CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL),
         gemini_model=os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
+        demo_mode=is_truthy(os.getenv("DEMO_MODE")),
     )

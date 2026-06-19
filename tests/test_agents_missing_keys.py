@@ -18,6 +18,31 @@ class MissingApiKeyTests(unittest.TestCase):
             "缺少 OPENAI_API_KEY，请在 .env 文件中配置。",
         )
 
+    @patch.dict("os.environ", {"DEMO_MODE": "true"}, clear=True)
+    def test_demo_mode_returns_local_outputs_without_keys(self) -> None:
+        self.assertIn("Demo 模式提示", OpenAIAgent().run("测试问题"))
+        self.assertIn("Demo 模式提示", ClaudeAgent().run("测试问题"))
+        self.assertIn("Demo 模式提示", GeminiAgent().run("测试问题"))
+        self.assertIn(
+            "Demo 模式提示",
+            CriticAgent().run(
+                question="测试问题",
+                gpt_answer="GPT 回答",
+                claude_answer="Claude 回答",
+                gemini_answer="Gemini 回答",
+            ),
+        )
+        self.assertIn(
+            "Demo 模式提示",
+            ModeratorAgent().run(
+                question="测试问题",
+                gpt_answer="GPT 回答",
+                claude_answer="Claude 回答",
+                gemini_answer="Gemini 回答",
+                critic_answer="Critic 回答",
+            ),
+        )
+
     @patch.dict("os.environ", {}, clear=True)
     def test_claude_agent_reports_missing_key(self) -> None:
         self.assertEqual(

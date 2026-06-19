@@ -6,6 +6,7 @@ from anthropic import Anthropic
 
 from agents.base import BaseAgent
 from utils.config import get_settings
+from utils.demo import build_demo_response
 
 
 class ClaudeAgent(BaseAgent):
@@ -25,6 +26,9 @@ class ClaudeAgent(BaseAgent):
 
     def run(self, question: str) -> str:
         """Generate a Claude Agent response for the user's question."""
+
+        if self.settings.demo_mode:
+            return build_demo_response(self.name, question)
 
         if not self.settings.anthropic_api_key:
             return "缺少 ANTHROPIC_API_KEY，请在 .env 文件中配置。"

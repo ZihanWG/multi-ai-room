@@ -22,6 +22,10 @@ The format follows the spirit of Keep a Changelog, and this project will use sem
   Added open-source project files: license, contributing guide, security policy, CI, tests, issue templates, and PR template.
 - 增加中英双语文档。
   Added bilingual Chinese and English documentation.
+- 增加 Demo 模式，无需 API Key 即可体验完整讨论流程。
+  Added Demo Mode so users can try the full discussion flow without API keys.
+- 增加 Markdown 导出功能。
+  Added Markdown export for discussion results.
 
 ### Changed / 变更
 

@@ -6,6 +6,7 @@ from openai import OpenAI
 
 from agents.base import BaseAgent
 from utils.config import get_settings
+from utils.demo import build_demo_response
 
 
 class OpenAIAgent(BaseAgent):
@@ -25,6 +26,9 @@ class OpenAIAgent(BaseAgent):
 
     def run(self, question: str) -> str:
         """Generate a GPT Agent response for the user's question."""
+
+        if self.settings.demo_mode:
+            return build_demo_response(self.name, question)
 
         if not self.settings.openai_api_key:
             return "缺少 OPENAI_API_KEY，请在 .env 文件中配置。"

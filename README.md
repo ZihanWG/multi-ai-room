@@ -39,6 +39,10 @@ A local multi-agent discussion app built with Python 3.12 and Streamlit. After t
   Missing API keys produce clear per-agent messages.
 - 页面提供角色看板、讨论过程时间线、进度条和最终结论面板。
   Includes a role board, discussion timeline, progress indicator, and final summary panel.
+- 支持 Demo 模式，不配置 API Key 也能体验完整流程。
+  Includes Demo Mode so users can try the full flow without API keys.
+- 支持将讨论结果导出为 Markdown。
+  Supports exporting discussion results as Markdown.
 - 侧边栏可以控制是否显示讨论过程、是否默认展开 Agent 原文。
   Sidebar controls can show/hide the discussion process and expand/collapse raw agent outputs.
 - 讨论过程展示的是面向用户的阶段记录和分析摘要，不是模型隐藏思维链。
@@ -86,11 +90,14 @@ multi-ai-room/
 │   └── moderator_agent.py
 ├── utils/
 │   ├── __init__.py
-│   └── config.py
+│   ├── config.py
+│   ├── demo.py
+│   └── export.py
 └── tests/
     ├── __init__.py
     ├── test_agents_missing_keys.py
-    └── test_config.py
+    ├── test_config.py
+    └── test_export.py
 ```
 
 ## 安装步骤 / Installation
@@ -147,11 +154,27 @@ GEMINI_API_KEY=your_gemini_api_key_here
 OPENAI_MODEL=gpt-4.1
 CLAUDE_MODEL=claude-3-5-sonnet-latest
 GEMINI_MODEL=gemini-1.5-flash
+
+DEMO_MODE=false
 ```
 
 可以只配置部分 API Key。未配置的模型会在对应 Agent 输出区域显示错误提示，不会让应用整体崩溃。
 
 You may configure only some API keys. Missing providers show clear messages in their agent output blocks without crashing the app.
+
+## Demo 模式 / Demo Mode
+
+如果你只是想体验完整界面和讨论流程，可以启用 Demo 模式：
+
+If you only want to try the complete UI and discussion flow, enable Demo Mode:
+
+```env
+DEMO_MODE=true
+```
+
+Demo 模式会返回稳定的本地模拟内容，不调用 OpenAI、Anthropic 或 Gemini，也不会产生 API 费用。
+
+Demo Mode returns deterministic local sample responses. It does not call OpenAI, Anthropic, or Gemini, and it does not incur API costs.
 
 ## 依赖版本 / Dependency Versions
 
@@ -239,6 +262,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the agent flow, state manag
   Full agent outputs can be expanded by default or manually through sidebar controls.
 - 底部「最终结论」会突出显示 Moderator Agent 的汇总结果。
   The final answer section highlights the Moderator synthesis.
+- 讨论完成后可以点击「导出 Markdown」下载完整讨论记录。
+  After a discussion finishes, click "导出 Markdown" to download the full discussion record.
 
 ## 隐私与费用说明 / Privacy and Cost
 
@@ -250,6 +275,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the agent flow, state manag
   Do not enter confidential, personal, or protected data that should not be sent to third-party model services.
 - 模型调用可能产生 API 费用，费用由你配置的 API Key 所属账号承担。
   Model calls may incur API costs, charged to the accounts behind your configured API keys.
+- `DEMO_MODE=true` 时不会调用外部模型服务。
+  When `DEMO_MODE=true`, no external model service is called.
 - `.env` 已被 `.gitignore` 忽略，请不要提交真实 API Key。
   `.env` is ignored by `.gitignore`; do not commit real API keys.
 

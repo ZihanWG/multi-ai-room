@@ -10,6 +10,7 @@ from utils.config import (
     DEFAULT_GEMINI_MODEL,
     DEFAULT_OPENAI_MODEL,
     get_settings,
+    is_truthy,
 )
 
 
@@ -26,6 +27,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.openai_model, DEFAULT_OPENAI_MODEL)
         self.assertEqual(settings.claude_model, DEFAULT_CLAUDE_MODEL)
         self.assertEqual(settings.gemini_model, DEFAULT_GEMINI_MODEL)
+        self.assertFalse(settings.demo_mode)
 
     @patch.dict(
         "os.environ",
@@ -36,6 +38,7 @@ class SettingsTests(unittest.TestCase):
             "OPENAI_MODEL": "openai-test-model",
             "CLAUDE_MODEL": "claude-test-model",
             "GEMINI_MODEL": "gemini-test-model",
+            "DEMO_MODE": "true",
         },
         clear=True,
     )
@@ -48,6 +51,16 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.openai_model, "openai-test-model")
         self.assertEqual(settings.claude_model, "claude-test-model")
         self.assertEqual(settings.gemini_model, "gemini-test-model")
+        self.assertTrue(settings.demo_mode)
+
+    def test_truthy_environment_values(self) -> None:
+        for value in ["1", "true", "TRUE", "yes", "on", " On "]:
+            with self.subTest(value=value):
+                self.assertTrue(is_truthy(value))
+
+        for value in [None, "", "0", "false", "no", "off", "enabled"]:
+            with self.subTest(value=value):
+                self.assertFalse(is_truthy(value))
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from openai import OpenAI
 
 from agents.base import BaseAgent
 from utils.config import get_settings
+from utils.demo import build_demo_response
 
 
 class CriticAgent(BaseAgent):
@@ -32,6 +33,13 @@ class CriticAgent(BaseAgent):
         gemini_answer: str,
     ) -> str:
         """Critique the GPT, Claude, and Gemini answers."""
+
+        if self.settings.demo_mode:
+            return build_demo_response(
+                self.name,
+                question,
+                context="\n\n".join([gpt_answer, claude_answer, gemini_answer]),
+            )
 
         if not self.settings.openai_api_key:
             return "缺少 OPENAI_API_KEY，请在 .env 文件中配置。"
