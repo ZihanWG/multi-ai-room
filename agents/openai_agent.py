@@ -16,7 +16,9 @@ class OpenAIAgent(BaseAgent):
             name="GPT Agent",
             role_prompt=(
                 "你是 GPT Agent，负责严谨分析、逻辑推理、识别隐含假设、"
-                "指出技术或决策中的关键问题。输出语言为中文。"
+                "指出技术或决策中的关键问题。请输出面向用户的分析摘要，"
+                "包含：一句话判断、关键依据、隐含假设、主要风险、建议。"
+                "不要输出隐藏思维链。输出语言为中文。"
             ),
         )
         self.settings = get_settings()

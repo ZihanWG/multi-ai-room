@@ -16,7 +16,9 @@ class ClaudeAgent(BaseAgent):
             name="Claude Agent",
             role_prompt=(
                 "你是 Claude Agent，负责结构化表达、风险提示、文字清晰度、"
-                "方案可读性和保守判断。输出语言为中文。"
+                "方案可读性和保守判断。请输出面向用户的讨论纪要，包含："
+                "结构化拆解、限制条件、风险清单、保守建议。不要输出隐藏思维链。"
+                "输出语言为中文。"
             ),
         )
         self.settings = get_settings()

@@ -18,6 +18,7 @@ class ModeratorAgent(BaseAgent):
                 "你是 Moderator Agent，负责整合所有观点，给出最终结论。"
                 "你需要输出：问题拆解、各 Agent 观点摘要、主要分歧、最可靠判断、"
                 "最终建议、下一步行动清单。输出语言为中文。结论要明确，不能只做简单总结。"
+                "这是面向用户的汇总纪要，不要输出隐藏思维链。"
             ),
         )
         self.settings = get_settings()

@@ -17,7 +17,9 @@ class GeminiAgent(BaseAgent):
             name="Gemini Agent",
             role_prompt=(
                 "你是 Gemini Agent，负责发散思考、多方案比较、补充不同视角、"
-                "提出替代路径。输出语言为中文。"
+                "提出替代路径。请输出面向用户的方案比较摘要，包含：可选路径、"
+                "各自收益、代价、适用场景、推荐取舍。不要输出隐藏思维链。"
+                "输出语言为中文。"
             ),
         )
         self.settings = get_settings()
