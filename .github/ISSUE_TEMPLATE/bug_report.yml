@@ -1,5 +1,5 @@
-name: Bug report
-description: Report a reproducible problem.
+name: Bug report / 缺陷报告
+description: Report a reproducible problem. / 报告一个可复现的问题。
 title: "[Bug]: "
 labels:
   - bug
@@ -7,41 +7,41 @@ body:
   - type: textarea
     id: summary
     attributes:
-      label: Summary
-      description: What went wrong?
+      label: Summary / 问题摘要
+      description: What went wrong? / 出现了什么问题？
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
-      description: Include the exact commands or UI actions.
+      label: Steps to reproduce / 复现步骤
+      description: Include the exact commands or UI actions. / 请包含准确的命令或界面操作。
       placeholder: |
-        1. Run `streamlit run app.py`
-        2. Enter ...
-        3. Click ...
+        1. Run `streamlit run app.py` / 运行 `streamlit run app.py`
+        2. Enter ... / 输入 ...
+        3. Click ... / 点击 ...
     validations:
       required: true
   - type: input
     id: python-version
     attributes:
-      label: Python version
+      label: Python version / Python 版本
       placeholder: "3.12.10"
     validations:
       required: true
   - type: dropdown
     id: providers
     attributes:
-      label: Configured providers
+      label: Configured providers / 已配置的服务商
       multiple: true
       options:
         - OpenAI
         - Anthropic
         - Gemini
-        - None
+        - None / 无
   - type: textarea
     id: logs
     attributes:
-      label: Logs or screenshots
-      description: Remove API keys, tokens, personal data, and private prompts before posting.
+      label: Logs or screenshots / 日志或截图
+      description: Remove API keys, tokens, personal data, and private prompts before posting. / 发布前请移除 API Key、令牌、个人数据和私有提示词。
       render: text

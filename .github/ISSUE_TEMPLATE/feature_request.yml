@@ -1,5 +1,5 @@
-name: Feature request
-description: Suggest an improvement or new capability.
+name: Feature request / 功能建议
+description: Suggest an improvement or new capability. / 建议一个改进或新能力。
 title: "[Feature]: "
 labels:
   - enhancement
@@ -7,27 +7,27 @@ body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: What user need or workflow gap does this solve?
+      label: Problem / 问题
+      description: What user need or workflow gap does this solve? / 这个建议解决什么用户需求或流程缺口？
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed solution
-      description: Describe the behavior, UI, or API change you want.
+      label: Proposed solution / 建议方案
+      description: Describe the behavior, UI, or API change you want. / 描述你希望看到的行为、界面或 API 变化。
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
-      description: Optional, but helpful for product and implementation tradeoffs.
+      label: Alternatives considered / 考虑过的替代方案
+      description: Optional, but helpful for product and implementation tradeoffs. / 可选，但有助于判断产品和实现取舍。
   - type: checkboxes
     id: impact
     attributes:
-      label: Impact
+      label: Impact / 影响
       options:
-        - label: This may require new environment variables.
-        - label: This may call external model APIs or increase API cost.
-        - label: This changes user-facing UI.
+        - label: This may require new environment variables. / 这可能需要新的环境变量。
+        - label: This may call external model APIs or increase API cost. / 这可能调用外部模型 API 或增加 API 成本。
+        - label: This changes user-facing UI. / 这会改变用户可见界面。
