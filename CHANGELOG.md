@@ -41,3 +41,7 @@ The format follows the spirit of Keep a Changelog, and this project will use sem
   README now documents Python 3.12 setup, privacy and cost considerations, tests, and contribution flow.
 - 改进输入框聚焦反馈，点击后会显示更明显的光标和边框状态。
   Improved textarea focus feedback with a clearer caret and focus border.
+- 改进深色界面，增强顶部栏、侧边栏、卡片、输入框和结果区的暗色对比度。
+  Improved the dark interface with stronger contrast for the top bar, sidebar, cards, inputs, and result sections.
+- 修复在 Streamlit 顶部菜单切换到 Light 后仍显示深色界面的问题。
+  Fixed the UI staying dark after switching to Light in Streamlit's top menu.

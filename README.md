@@ -47,8 +47,8 @@ A local multi-agent discussion app built with Python 3.12 and Streamlit. After t
   Supports exporting discussion results as Markdown.
 - 支持在同一谈话窗口继续追问，并自动携带前几轮上下文。
   Supports follow-up questions in the same conversation window with prior context included automatically.
-- 侧边栏可以控制是否显示讨论过程、是否默认展开 Agent 原文。
-  Sidebar controls can show/hide the discussion process and expand/collapse raw agent outputs.
+- 主题跟随 Streamlit 顶部菜单里的 Light/Dark/System：浅色模式保留默认浅色界面，深色模式启用项目暗色配色；侧边栏可以控制是否显示讨论过程、是否默认展开 Agent 原文。
+  The theme follows Streamlit's built-in Light/Dark/System selector: light mode keeps the default light interface, while dark mode enables the app's dark palette; sidebar controls can show/hide the discussion process and expand/collapse raw agent outputs.
 - 讨论过程展示的是面向用户的阶段记录和分析摘要，不是模型隐藏思维链。
   The discussion process shows user-facing notes and summaries, not hidden chain-of-thought.
 - 支持用 Python 标准库 `unittest` 做基础测试。
@@ -269,6 +269,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the agent flow, state manag
   The discussion process area updates with each step, showing inputs, state, and output summaries.
 - 交叉回应阶段展示的是模型之间面向用户的可读回应，不是模型隐藏思维链。
   The peer-response stages show user-facing responses between models, not hidden chain-of-thought.
+- 主题跟随 Streamlit 顶部菜单里的 Light/Dark/System；深色模式会启用项目自己的暗色配色，覆盖顶部栏、侧边栏、卡片、输入框和结果区。
+  The theme follows Streamlit's built-in Light/Dark/System selector; dark mode enables the app's own dark palette for the top bar, sidebar, cards, input fields, and result sections.
 - 每个 Agent 的完整原文可以默认展开，也可以在侧边栏切换为手动展开。
   Full agent outputs can be expanded by default or manually through sidebar controls.
 - 底部「最终结论」会突出显示 Moderator Agent 的汇总结果。

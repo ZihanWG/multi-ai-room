@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from agents import ClaudeAgent, CriticAgent, GeminiAgent, ModeratorAgent, OpenAIAgent
 from utils.config import get_settings
@@ -166,9 +167,73 @@ def save_discussion_turn(question: str, outputs: dict[str, str]) -> None:
     )
 
 
+def get_theme_marker() -> str:
+    """Return the marker class for the active Streamlit theme."""
+
+    try:
+        theme_type = str(st.context.theme.get("type") or "").lower()
+    except Exception:
+        theme_type = ""
+
+    if theme_type == "dark":
+        return "multi-ai-room-dark-mode-marker"
+    return "multi-ai-room-light-mode-marker"
+
+
+def sync_streamlit_theme_class() -> None:
+    """Mirror Streamlit's active frontend theme onto the app root."""
+
+    components.html(
+        """
+        <script>
+        (() => {
+            const root = window.parent.document;
+
+            const luminanceFromBackground = (backgroundColor) => {
+                const channels = backgroundColor.match(/[\\d.]+/g);
+                if (!channels || channels.length < 3) {
+                    return 1;
+                }
+
+                const [red, green, blue] = channels.map(Number);
+                return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+            };
+
+            const syncThemeClass = () => {
+                const app = root.querySelector(".stApp");
+                if (!app || !root.body) {
+                    return;
+                }
+
+                const bodyBackground = root.defaultView.getComputedStyle(root.body).backgroundColor;
+                const isDarkTheme = luminanceFromBackground(bodyBackground) < 0.5;
+
+                app.classList.toggle("multi-ai-room-theme-dark", isDarkTheme);
+                app.classList.toggle("multi-ai-room-theme-light", !isDarkTheme);
+            };
+
+            syncThemeClass();
+
+            const observer = new MutationObserver(syncThemeClass);
+            observer.observe(root.body, {
+                attributes: true,
+                childList: true,
+                subtree: true,
+                attributeFilter: ["class", "style", "data-theme"],
+            });
+
+            window.setInterval(syncThemeClass, 500);
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
 def apply_page_styles() -> None:
     """Apply lightweight visual styling for the Streamlit app."""
 
+    st.markdown(f'<div class="{get_theme_marker()}"></div>', unsafe_allow_html=True)
     st.markdown(
         """
         <style>
@@ -378,10 +443,191 @@ def apply_page_styles() -> None:
             padding: 0.65rem 1.25rem;
             font-weight: 750;
         }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) {
+            background:
+                radial-gradient(circle at top left, rgba(94, 234, 212, 0.20), transparent 34rem),
+                radial-gradient(circle at 85% 4rem, rgba(56, 189, 248, 0.12), transparent 30rem),
+                linear-gradient(135deg, #08110f 0%, #101715 48%, #171717 100%);
+            color: #e5f2ef;
+            color-scheme: dark;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stHeader"] {
+            background: rgba(8, 17, 15, 0.86);
+            backdrop-filter: blur(12px);
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stToolbar"],
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stToolbar"] *,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stHeader"] button,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stHeader"] svg {
+            color: #e5f2ef !important;
+            fill: #e5f2ef !important;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stAppViewContainer"],
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] h1,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] h2,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] h3,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] h4,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] h5,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] h6,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] p,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMarkdownContainer"] li,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stWidgetLabel"] p,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMetricLabel"],
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stMetricValue"],
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stCaptionContainer"] p,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stExpander"] summary p {
+            color: #e5f2ef;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stCaptionContainer"] p,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .agent-objective,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-meta,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-state {
+            color: #a9bfba;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) textarea {
+            color: #e5f2ef !important;
+            background: #0b1513 !important;
+            caret-color: #5eead4 !important;
+            border-color: #2f4740 !important;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) textarea::placeholder {
+            color: #718882 !important;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) textarea:focus {
+            border-color: #5eead4 !important;
+            box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.22) !important;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] {
+            background: #0b1311;
+            border-right: 1px solid #273a35;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h1,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h4,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
+            color: #d7e8e4;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .hero {
+            border-color: #2c443d;
+            background: rgba(16, 25, 23, 0.92);
+            box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .hero-eyebrow {
+            color: #5eead4;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .hero h1 {
+            color: #f3fffc;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .hero p {
+            color: #bdd0cc;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .agent-card,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-card,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .final-card {
+            border-color: #2c403a;
+            background: rgba(17, 27, 24, 0.94);
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.26);
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .agent-title,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-title {
+            color: #f3fffc;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .agent-role {
+            color: #5eead4;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-card {
+            border-left-color: #39554d;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-card.is-active {
+            border-left-color: #5eead4;
+            background: rgba(20, 184, 166, 0.16);
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-card.is-done {
+            border-left-color: #2dd4bf;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .timeline-index {
+            color: #05201c;
+            background: #5eead4;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .status-pill {
+            background: rgba(45, 212, 191, 0.16);
+            color: #99f6e4;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) .final-card {
+            border-left-color: #38bdf8;
+            background: rgba(14, 37, 47, 0.92);
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stExpander"] {
+            border-color: #2c403a;
+            background: rgba(17, 27, 24, 0.94);
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stExpander"] details,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stExpander"] summary {
+            background: #111b18 !important;
+            color: #e5f2ef !important;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stExpander"] summary p,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stExpander"] summary span,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) [data-testid="stExpander"] summary svg {
+            color: #e5f2ef !important;
+            fill: #e5f2ef !important;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stVerticalBlockBorderWrapper"],
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stMetric"] {
+            border-color: #2c403a !important;
+            background: rgba(17, 27, 24, 0.72);
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stButton"] > button,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stFormSubmitButton"] > button,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stDownloadButton"] > button {
+            border-color: rgba(94, 234, 212, 0.42);
+            background: linear-gradient(135deg, #0f766e 0%, #155e75 100%);
+            color: #f3fffc;
+        }
+
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stButton"] > button:hover,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stFormSubmitButton"] > button:hover,
+        :is(.stApp.multi-ai-room-theme-dark, .stApp:has(.multi-ai-room-dark-mode-marker):not(.multi-ai-room-theme-light)) div[data-testid="stDownloadButton"] > button:hover {
+            border-color: #99f6e4;
+            box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.16);
+            color: #ffffff;
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
+    sync_streamlit_theme_class()
 
 
 def render_hero() -> None:
@@ -963,8 +1209,8 @@ def main() -> None:
 
     st.set_page_config(page_title="多 AI 讨论室", page_icon="AI", layout="wide")
     initialize_session_state()
-    apply_page_styles()
     show_process, expand_outputs = render_sidebar_controls()
+    apply_page_styles()
     render_hero()
     render_agent_board()
 
