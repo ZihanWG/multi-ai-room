@@ -31,14 +31,17 @@ class CriticAgent(BaseAgent):
         gpt_answer: str,
         claude_answer: str,
         gemini_answer: str,
+        peer_discussion: str = "",
     ) -> str:
         """Critique the GPT, Claude, and Gemini answers."""
 
-        if self.settings.demo_mode:
+        if getattr(self.settings, "demo_mode", False):
             return build_demo_response(
                 self.name,
                 question,
-                context="\n\n".join([gpt_answer, claude_answer, gemini_answer]),
+                context="\n\n".join(
+                    [gpt_answer, claude_answer, gemini_answer, peer_discussion]
+                ),
             )
 
         if not self.settings.openai_api_key:
@@ -57,7 +60,10 @@ Claude Agent 回答：
 Gemini Agent 回答：
 {gemini_answer}
 
-请对前三个 Agent 的回答进行批判性评审。必须明确指出问题，不要为了平衡而平均分配优缺点。
+GPT / Claude / Gemini 交叉回应：
+{peer_discussion or "无交叉回应记录。"}
+
+请对前三个 Agent 的首轮回答和交叉回应进行批判性评审。必须明确指出问题，不要为了平衡而平均分配优缺点。
 """.strip()
 
         try:

@@ -19,12 +19,30 @@ flowchart TD
     UI --> GPT["OpenAIAgent"]
     UI --> Claude["ClaudeAgent"]
     UI --> Gemini["GeminiAgent"]
+    GPT --> GPTRound["GPT 交叉回应 / GPT peer response"]
+    Claude --> GPTRound
+    Gemini --> GPTRound
+    GPT --> ClaudeRound["Claude 交叉回应 / Claude peer response"]
+    Claude --> ClaudeRound
+    Gemini --> ClaudeRound
+    GPTRound --> ClaudeRound
+    GPT --> GeminiRound["Gemini 交叉回应 / Gemini peer response"]
+    Claude --> GeminiRound
+    Gemini --> GeminiRound
+    GPTRound --> GeminiRound
+    ClaudeRound --> GeminiRound
     GPT --> Critic["CriticAgent"]
     Claude --> Critic
     Gemini --> Critic
+    GPTRound --> Critic
+    ClaudeRound --> Critic
+    GeminiRound --> Critic
     GPT --> Moderator["ModeratorAgent"]
     Claude --> Moderator
     Gemini --> Moderator
+    GPTRound --> Moderator
+    ClaudeRound --> Moderator
+    GeminiRound --> Moderator
     Critic --> Moderator
     Moderator --> Result["最终回答 / Final answer"]
     Result --> UI
@@ -38,6 +56,8 @@ flowchart TD
   `ClaudeAgent`: structure, readability, risk notes, and conservative judgment.
 - `GeminiAgent`：替代路径和方案比较。
   `GeminiAgent`: alternative paths and option comparison.
+- GPT、Claude 和 Gemini 在首轮观点之后会各自生成一轮交叉回应，用于回应彼此的观点和修正判断。
+  After the first-pass views, GPT, Claude, and Gemini each generate one peer-response round to respond to each other and revise their judgments.
 - `CriticAgent`：批判 GPT、Claude 和 Gemini 的输出。
   `CriticAgent`: critique of GPT, Claude, and Gemini outputs.
 - `ModeratorAgent`：最终综合和可执行建议。
@@ -55,6 +75,11 @@ The saved values are:
 
 - `discussion_question`
 - `discussion_outputs`
+- `discussion_turns`
+
+`discussion_turns` 保存同一窗口中的多轮问题和 Agent 输出。追问时，`utils/conversation.py` 会把最近几轮讨论转换为上下文提示词，再交给当前 Agent 流程。
+
+`discussion_turns` stores multiple questions and agent outputs in the same window. For follow-up questions, `utils/conversation.py` converts recent turns into a contextual prompt before passing it into the current agent flow.
 
 ## 外部服务 / External Services
 
@@ -79,9 +104,9 @@ If `DEMO_MODE=true`, agents return local deterministic sample responses from `ut
 
 ## 导出 / Export
 
-讨论结果可以通过 `utils/export.py` 转换为 Markdown。Streamlit UI 使用同一个工具函数提供下载按钮，因此导出逻辑可以独立测试。
+单轮讨论和整段对话都可以通过 `utils/export.py` 转换为 Markdown。Streamlit UI 使用同一个工具函数提供下载按钮，因此导出逻辑可以独立测试。
 
-Discussion results can be converted to Markdown through `utils/export.py`. The Streamlit UI uses the same helper to provide a download button, so export behavior can be tested independently.
+Single-turn discussions and full conversations can be converted to Markdown through `utils/export.py`. The Streamlit UI uses the same helper to provide download buttons, so export behavior can be tested independently.
 
 ## 非目标 / Non-Goals
 

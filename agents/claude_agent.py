@@ -27,7 +27,7 @@ class ClaudeAgent(BaseAgent):
     def run(self, question: str) -> str:
         """Generate a Claude Agent response for the user's question."""
 
-        if self.settings.demo_mode:
+        if getattr(self.settings, "demo_mode", False):
             return build_demo_response(self.name, question)
 
         if not self.settings.anthropic_api_key:

@@ -31,15 +31,22 @@ class ModeratorAgent(BaseAgent):
         claude_answer: str,
         gemini_answer: str,
         critic_answer: str,
+        peer_discussion: str = "",
     ) -> str:
         """Synthesize all agent outputs into a final conclusion."""
 
-        if self.settings.demo_mode:
+        if getattr(self.settings, "demo_mode", False):
             return build_demo_response(
                 self.name,
                 question,
                 context="\n\n".join(
-                    [gpt_answer, claude_answer, gemini_answer, critic_answer]
+                    [
+                        gpt_answer,
+                        claude_answer,
+                        gemini_answer,
+                        peer_discussion,
+                        critic_answer,
+                    ]
                 ),
             )
 
@@ -59,10 +66,13 @@ Claude Agent 回答：
 Gemini Agent 回答：
 {gemini_answer}
 
+GPT / Claude / Gemini 交叉回应：
+{peer_discussion or "无交叉回应记录。"}
+
 Critic Agent 批判：
 {critic_answer}
 
-请整合以上内容，给出明确的最终结论和可执行行动建议。
+请整合以上首轮观点、交叉回应和 Critic 评审，给出明确的最终结论和可执行行动建议。
 """.strip()
 
         try:

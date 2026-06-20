@@ -26,6 +26,12 @@ The format follows the spirit of Keep a Changelog, and this project will use sem
   Added Demo Mode so users can try the full discussion flow without API keys.
 - 增加 Markdown 导出功能。
   Added Markdown export for discussion results.
+- 增加同一窗口继续追问能力，并保留多轮对话历史。
+  Added follow-up questions in the same window with multi-turn conversation history.
+- 增加整段对话 Markdown 导出。
+  Added full-conversation Markdown export.
+- 增加 GPT、Claude 和 Gemini 的可见交叉回应阶段。
+  Added visible peer-response stages for GPT, Claude, and Gemini.
 
 ### Changed / 变更
 
@@ -33,3 +39,5 @@ The format follows the spirit of Keep a Changelog, and this project will use sem
   Direct dependencies are pinned in `requirements.txt`.
 - README 现在包含 Python 3.12 安装、隐私与费用说明、测试和贡献流程。
   README now documents Python 3.12 setup, privacy and cost considerations, tests, and contribution flow.
+- 改进输入框聚焦反馈，点击后会显示更明显的光标和边框状态。
+  Improved textarea focus feedback with a clearer caret and focus border.

@@ -4,9 +4,9 @@
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-一个基于 Python 3.12 和 Streamlit 的本地多 Agent 讨论应用。用户输入问题后，系统会按顺序调用多个 AI Agent，生成分析、补充、批判和最终建议。
+一个基于 Python 3.12 和 Streamlit 的本地多 Agent 讨论应用。用户输入问题后，系统会按顺序调用多个 AI Agent，让 GPT、Claude 和 Gemini 互相回应，再生成批判评审和最终建议。
 
-A local multi-agent discussion app built with Python 3.12 and Streamlit. After the user enters a question, the app calls several AI agents in sequence to produce analysis, alternative views, critique, and a final recommendation.
+A local multi-agent discussion app built with Python 3.12 and Streamlit. After the user enters a question, the app calls several AI agents in sequence, asks GPT, Claude, and Gemini to respond to each other, then produces critique and a final recommendation.
 
 1. OpenAI GPT Agent：严谨分析、逻辑推理、识别隐含假设
    OpenAI GPT Agent: rigorous analysis, logical reasoning, and implicit-assumption detection.
@@ -33,6 +33,8 @@ A local multi-agent discussion app built with Python 3.12 and Streamlit. After t
   Loads API keys and model names from `.env` with `python-dotenv`.
 - 每个 Agent 独立显示输出，Moderator Agent 的最终结论突出显示。
   Displays each agent output separately and highlights the Moderator final answer.
+- GPT、Claude 和 Gemini 会先给首轮观点，再进行一轮可见的交叉回应。
+  GPT, Claude, and Gemini first provide initial views, then produce a visible peer-response round.
 - 单个模型调用失败不会导致整个应用崩溃。
   A single provider failure does not crash the whole app.
 - API Key 缺失时会在对应 Agent 区域显示清晰错误信息。
@@ -43,6 +45,8 @@ A local multi-agent discussion app built with Python 3.12 and Streamlit. After t
   Includes Demo Mode so users can try the full flow without API keys.
 - 支持将讨论结果导出为 Markdown。
   Supports exporting discussion results as Markdown.
+- 支持在同一谈话窗口继续追问，并自动携带前几轮上下文。
+  Supports follow-up questions in the same conversation window with prior context included automatically.
 - 侧边栏可以控制是否显示讨论过程、是否默认展开 Agent 原文。
   Sidebar controls can show/hide the discussion process and expand/collapse raw agent outputs.
 - 讨论过程展示的是面向用户的阶段记录和分析摘要，不是模型隐藏思维链。
@@ -90,14 +94,19 @@ multi-ai-room/
 │   └── moderator_agent.py
 ├── utils/
 │   ├── __init__.py
+│   ├── conversation.py
 │   ├── config.py
 │   ├── demo.py
-│   └── export.py
+│   ├── export.py
+│   └── roundtable.py
 └── tests/
     ├── __init__.py
     ├── test_agents_missing_keys.py
+    ├── test_conversation.py
     ├── test_config.py
-    └── test_export.py
+    ├── test_demo.py
+    ├── test_export.py
+    └── test_roundtable.py
 ```
 
 ## 安装步骤 / Installation
@@ -218,8 +227,8 @@ http://localhost:8501
    Enter a question, for example: "Should we split the current monolith into microservices?"
 3. 点击「开始讨论」。
    Click "开始讨论".
-4. 页面应依次显示讨论过程、GPT Agent、Claude Agent、Gemini Agent、Critic Agent 和最终结论。
-   The page should show the discussion process, GPT Agent, Claude Agent, Gemini Agent, Critic Agent, and final answer.
+4. 页面应依次显示讨论过程、GPT/Claude/Gemini 首轮观点、三段交叉回应、Critic Agent 和最终结论。
+   The page should show the discussion process, GPT/Claude/Gemini initial views, three peer responses, Critic Agent, and final answer.
 5. 如果没有配置某个 API Key，对应区域应显示类似「缺少 OPENAI_API_KEY，请在 .env 文件中配置。」的提示。
    If an API key is missing, the corresponding block should show a clear missing-key message.
 
@@ -258,12 +267,16 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the agent flow, state manag
   The top role board shows each agent's responsibility and goal.
 - 「讨论过程」区域会随着调用进度更新，展示每个 Agent 的输入来源、阶段状态和输出摘要。
   The discussion process area updates with each step, showing inputs, state, and output summaries.
+- 交叉回应阶段展示的是模型之间面向用户的可读回应，不是模型隐藏思维链。
+  The peer-response stages show user-facing responses between models, not hidden chain-of-thought.
 - 每个 Agent 的完整原文可以默认展开，也可以在侧边栏切换为手动展开。
   Full agent outputs can be expanded by default or manually through sidebar controls.
 - 底部「最终结论」会突出显示 Moderator Agent 的汇总结果。
   The final answer section highlights the Moderator synthesis.
 - 讨论完成后可以点击「导出 Markdown」下载完整讨论记录。
   After a discussion finishes, click "导出 Markdown" to download the full discussion record.
+- 继续追问后，页面会保留本窗口中的多轮问题和回答，并可导出整段对话。
+  After follow-up questions, the page keeps all turns in the current window and can export the whole conversation.
 
 ## 隐私与费用说明 / Privacy and Cost
 
@@ -275,6 +288,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the agent flow, state manag
   Do not enter confidential, personal, or protected data that should not be sent to third-party model services.
 - 模型调用可能产生 API 费用，费用由你配置的 API Key 所属账号承担。
   Model calls may incur API costs, charged to the accounts behind your configured API keys.
+- 一次完整讨论会包含首轮观点、交叉回应、评审和汇总，因此会产生多次模型调用。
+  A full discussion includes initial views, peer responses, critique, and synthesis, so it performs multiple model calls.
 - `DEMO_MODE=true` 时不会调用外部模型服务。
   When `DEMO_MODE=true`, no external model service is called.
 - `.env` 已被 `.gitignore` 忽略，请不要提交真实 API Key。

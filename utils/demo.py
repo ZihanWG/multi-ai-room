@@ -2,6 +2,115 @@
 
 from __future__ import annotations
 
+from utils.roundtable import PEER_RESPONSE_MARKER
+
+
+def extract_marked_section(
+    text: str,
+    marker: str,
+    stop_markers: tuple[str, ...],
+) -> str | None:
+    """Extract one marked section from a generated prompt."""
+
+    if marker not in text:
+        return None
+
+    section = text.split(marker, maxsplit=1)[1].strip()
+    for stop_marker in stop_markers:
+        if stop_marker in section:
+            section = section.split(stop_marker, maxsplit=1)[0].strip()
+    return section
+
+
+def extract_display_question(question: str) -> str:
+    """Extract the user-facing question from a contextual prompt."""
+
+    follow_up = extract_marked_section(
+        question,
+        "用户新的追问：",
+        ("\n\n请继续",),
+    )
+    if follow_up is not None:
+        return follow_up
+
+    original_question = extract_marked_section(
+        question,
+        "用户原始问题：",
+        (
+            "\n\n你当前身份：",
+            "\n\nGPT Agent 回答：",
+            "\n\nClaude Agent 回答：",
+            "\n\nGemini Agent 回答：",
+        ),
+    )
+    if original_question is not None:
+        return original_question
+
+    return question.strip()
+
+
+def is_peer_response_prompt(question: str) -> bool:
+    """Return whether a prompt asks for a visible cross-agent response."""
+
+    return PEER_RESPONSE_MARKER in question
+
+
+def build_demo_peer_response(agent_name: str, cleaned_question: str) -> str:
+    """Return deterministic demo content for a peer-response round."""
+
+    responses = {
+        "GPT Agent": f"""
+**Demo 模式提示**：这是本地模拟的 GPT 交叉回应，未调用 OpenAI。
+
+**我同意的部分**：
+- Claude 对风险边界和表达结构的提醒是必要的。
+- Gemini 提出的多路径比较能帮助避免只盯着单一方案。
+
+**我需要修正的判断**：
+- 首轮回答偏重“先定义指标”，但现在还应同时明确最小验证范围。
+- 对问题「{cleaned_question}」来说，直接做完整方案仍然过早。
+
+**给下一轮的建议**：把方案拆成“必须做、可以延后、明确不做”三类，再让 Critic 检查证据不足的地方。
+""".strip(),
+        "Claude Agent": f"""
+**Demo 模式提示**：这是本地模拟的 Claude 交叉回应，未调用 Anthropic。
+
+**回应 GPT**：
+- GPT 强调指标和验证范围是合理的，但需要补充负责人、时间窗口和验收口径。
+
+**回应 Gemini**：
+- Gemini 的多路径比较有价值，不过应避免把资源分散到太多路线。
+
+**结构化修正**：
+1. 先确认不可接受风险。
+2. 再定义两周内能完成的最小范围。
+3. 最后决定哪些功能进入开源前必做清单。
+
+**当前判断**：对「{cleaned_question}」，更稳妥的路径是低风险补齐基础体验，而不是扩大范围。
+""".strip(),
+        "Gemini Agent": f"""
+**Demo 模式提示**：这是本地模拟的 Gemini 交叉回应，未调用 Google Gemini。
+
+**回应 GPT**：
+- GPT 的指标优先思路可以保留，但需要转成更具体的功能优先级。
+
+**回应 Claude**：
+- Claude 的保守边界能降低风险，不过也要避免因为过度保守导致产品缺少亮点。
+
+**替代取舍**：
+- 短期：先补齐输入反馈、讨论可见性、导出和错误提示。
+- 中期：再考虑持久化、分享链接和模型配置面板。
+- 暂缓：复杂权限、团队协作和生产级部署。
+
+**当前建议**：围绕「{cleaned_question}」先做能直接提升体验和可信度的改动。
+""".strip(),
+    }
+
+    return responses.get(
+        agent_name,
+        f"**Demo 模式提示**：{agent_name} 暂无专用交叉回应。问题：{cleaned_question}",
+    )
+
 
 def build_demo_response(
     agent_name: str,
@@ -11,7 +120,10 @@ def build_demo_response(
 ) -> str:
     """Return a realistic, deterministic response for demo mode."""
 
-    cleaned_question = question.strip() or "未提供问题"
+    cleaned_question = extract_display_question(question) or "未提供问题"
+    if is_peer_response_prompt(question):
+        return build_demo_peer_response(agent_name, cleaned_question)
+
     context_note = ""
     if context.strip():
         context_note = "\n\n**已参考的前置内容**：Demo 模式会模拟读取前置 Agent 输出，但不会调用外部模型。"
