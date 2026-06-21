@@ -32,8 +32,22 @@ The format follows the spirit of Keep a Changelog, and this project will use sem
   Added full-conversation Markdown export.
 - 增加 GPT、Claude 和 Gemini 的可见交叉回应阶段。
   Added visible peer-response stages for GPT, Claude, and Gemini.
+- 增加 `ruff` 和 `mypy` 静态检查（lint 与类型检查），并接入 CI、`Makefile` 和 `requirements-dev.txt`。
+  Added `ruff` and `mypy` static checks (lint and type-check) wired into CI, the `Makefile`, and `requirements-dev.txt`.
 
 ### Changed / 变更
+
+- GPT、Claude、Gemini 的首轮观点改为并行生成，缩短首轮等待时间（三张卡片会一起出现）。
+  The GPT, Claude, and Gemini first-round views are now generated in parallel, shortening first-round latency (the three cards appear together).
+- Agent 调用失败或缺少 Key 的输出不再作为内容传入后续 Agent 的提示词。
+  Failed or missing-key agent outputs are no longer passed into later agents' prompts as content.
+- 共享提示词标记集中到 `utils/prompts.py`；拆分 `app.py`，样式移至 `styles.py`、讨论上下文助手移至 `utils/discussion.py`。
+  Shared prompt markers are centralized in `utils/prompts.py`; `app.py` is split, with styles moved to `styles.py` and discussion context helpers to `utils/discussion.py`.
+
+### Fixed / 修复
+
+- 更新过时的默认模型为 `claude-opus-4-8` / `gpt-5.5` / `gemini-3.1-pro`，修复默认 Claude 模型已下线导致 Claude Agent 调用失败的问题。
+  Updated stale default models to `claude-opus-4-8` / `gpt-5.5` / `gemini-3.1-pro`, fixing Claude Agent failures caused by the retired default Claude model.
 
 - `requirements.txt` 固定直接依赖版本。
   Direct dependencies are pinned in `requirements.txt`.

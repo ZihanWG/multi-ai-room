@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from utils.prompts import CONTINUE_INSTRUCTION, FOLLOW_UP_QUESTION_MARKER
 
 DEFAULT_CONTEXT_AGENT_ORDER = (
     "GPT Agent",
@@ -84,8 +85,8 @@ def build_follow_up_prompt(
 
 {history}
 
-用户新的追问：
+{FOLLOW_UP_QUESTION_MARKER}
 {cleaned_follow_up}
 
-请继续按当前 Agent 角色完成本轮回答。输出应面向用户，不要输出隐藏思维链。
+{CONTINUE_INSTRUCTION}输出应面向用户，不要输出隐藏思维链。
 """.strip()

@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from utils.prompts import (
+    CURRENT_IDENTITY_MARKER,
+    ORIGINAL_QUESTION_MARKER,
+    PEER_RESPONSE_MARKER,
+)
 
-PEER_RESPONSE_MARKER = "交叉回应任务"
+__all__ = ["PEER_RESPONSE_MARKER", "build_peer_response_prompt", "format_agent_blocks"]
 
 
 def format_agent_blocks(outputs: Mapping[str, str]) -> str:
@@ -39,10 +44,10 @@ def build_peer_response_prompt(
     return f"""
 {PEER_RESPONSE_MARKER}
 
-用户原始问题：
+{ORIGINAL_QUESTION_MARKER}
 {question.strip()}
 
-你当前身份：
+{CURRENT_IDENTITY_MARKER}
 {agent_name}
 
 你的首轮观点：

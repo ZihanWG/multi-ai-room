@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 
 from agents.base import BaseAgent
+from utils.agent_errors import call_failed_message, missing_key_message
 from utils.config import get_settings
 from utils.demo import build_demo_response
 
@@ -32,7 +33,7 @@ class GeminiAgent(BaseAgent):
             return build_demo_response(self.name, question)
 
         if not self.settings.gemini_api_key:
-            return "缺少 GEMINI_API_KEY，请在 .env 文件中配置。"
+            return missing_key_message("GEMINI_API_KEY")
 
         try:
             client = genai.Client(api_key=self.settings.gemini_api_key)
@@ -45,4 +46,4 @@ class GeminiAgent(BaseAgent):
             )
             return (response.text or "").strip()
         except Exception as exc:
-            return f"{self.name} 调用失败：{exc}"
+            return call_failed_message(self.name, exc)

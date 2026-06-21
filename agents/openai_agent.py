@@ -5,6 +5,7 @@ from __future__ import annotations
 from openai import OpenAI
 
 from agents.base import BaseAgent
+from utils.agent_errors import call_failed_message, missing_key_message
 from utils.config import get_settings
 from utils.demo import build_demo_response
 
@@ -31,7 +32,7 @@ class OpenAIAgent(BaseAgent):
             return build_demo_response(self.name, question)
 
         if not self.settings.openai_api_key:
-            return "缺少 OPENAI_API_KEY，请在 .env 文件中配置。"
+            return missing_key_message("OPENAI_API_KEY")
 
         try:
             client = OpenAI(api_key=self.settings.openai_api_key)
@@ -44,4 +45,4 @@ class OpenAIAgent(BaseAgent):
             )
             return response.output_text.strip()
         except Exception as exc:
-            return f"{self.name} 调用失败：{exc}"
+            return call_failed_message(self.name, exc)

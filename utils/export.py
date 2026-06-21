@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 
 from utils.conversation import coerce_outputs
 
-
 DEFAULT_AGENT_ORDER = (
     "GPT Agent",
     "Claude Agent",

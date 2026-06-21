@@ -1,0 +1,28 @@
+# Tooling configuration only. Runtime dependencies live in requirements.txt;
+# this project is run with `streamlit run app.py`, not installed as a package.
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+# E501 (line length) is intentionally off: the app embeds long CSS `:is(...)`
+# selectors and CJK prose strings that do not wrap cleanly. `ruff format` still
+# keeps code lines tidy.
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+# Streamlit, openai, anthropic, google-genai, and python-dotenv ship without
+# type stubs; don't fail on their missing imports.
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# Each agent intentionally refines BaseAgent.run with its own signature
+# (the base uses *args/**kwargs precisely to allow this), so the Liskov
+# override check does not apply here.
+[[tool.mypy.overrides]]
+module = "agents.*"
+disable_error_code = ["override"]

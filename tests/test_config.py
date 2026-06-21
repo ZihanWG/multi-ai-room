@@ -58,9 +58,18 @@ class SettingsTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertTrue(is_truthy(value))
 
-        for value in [None, "", "0", "false", "no", "off", "enabled"]:
-            with self.subTest(value=value):
-                self.assertFalse(is_truthy(value))
+        falsy_values: list[str | None] = [
+            None,
+            "",
+            "0",
+            "false",
+            "no",
+            "off",
+            "enabled",
+        ]
+        for falsy in falsy_values:
+            with self.subTest(value=falsy):
+                self.assertFalse(is_truthy(falsy))
 
 
 if __name__ == "__main__":

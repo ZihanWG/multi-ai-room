@@ -5,6 +5,7 @@ from __future__ import annotations
 from anthropic import Anthropic
 
 from agents.base import BaseAgent
+from utils.agent_errors import call_failed_message, missing_key_message
 from utils.config import get_settings
 from utils.demo import build_demo_response
 
@@ -31,7 +32,7 @@ class ClaudeAgent(BaseAgent):
             return build_demo_response(self.name, question)
 
         if not self.settings.anthropic_api_key:
-            return "缺少 ANTHROPIC_API_KEY，请在 .env 文件中配置。"
+            return missing_key_message("ANTHROPIC_API_KEY")
 
         try:
             client = Anthropic(api_key=self.settings.anthropic_api_key)
@@ -50,4 +51,4 @@ class ClaudeAgent(BaseAgent):
                 block.text for block in response.content if block.type == "text"
             ).strip()
         except Exception as exc:
-            return f"{self.name} 调用失败：{exc}"
+            return call_failed_message(self.name, exc)

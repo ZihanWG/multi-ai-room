@@ -61,7 +61,10 @@ A local multi-agent discussion app built with Python 3.12 and Streamlit. After t
 ```text
 multi-ai-room/
 ├── app.py
+├── styles.py
 ├── requirements.txt
+├── requirements-dev.txt
+├── pyproject.toml
 ├── README.md
 ├── LICENSE
 ├── CHANGELOG.md
@@ -94,17 +97,22 @@ multi-ai-room/
 │   └── moderator_agent.py
 ├── utils/
 │   ├── __init__.py
+│   ├── agent_errors.py
 │   ├── conversation.py
 │   ├── config.py
 │   ├── demo.py
+│   ├── discussion.py
 │   ├── export.py
+│   ├── prompts.py
 │   └── roundtable.py
 └── tests/
     ├── __init__.py
+    ├── test_agent_errors.py
     ├── test_agents_missing_keys.py
     ├── test_conversation.py
     ├── test_config.py
     ├── test_demo.py
+    ├── test_discussion.py
     ├── test_export.py
     └── test_roundtable.py
 ```
@@ -160,9 +168,9 @@ OPENAI_API_KEY=your_openai_api_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 GEMINI_API_KEY=your_gemini_api_key_here
 
-OPENAI_MODEL=gpt-4.1
-CLAUDE_MODEL=claude-3-5-sonnet-latest
-GEMINI_MODEL=gemini-1.5-flash
+OPENAI_MODEL=gpt-5.5
+CLAUDE_MODEL=claude-opus-4-8
+GEMINI_MODEL=gemini-3.1-pro
 
 DEMO_MODE=false
 ```
@@ -341,9 +349,9 @@ Yes. If only `OPENAI_API_KEY` is configured, GPT Agent, Critic Agent, and Modera
 Yes. Edit the model names in `.env`:
 
 ```env
-OPENAI_MODEL=gpt-4.1
-CLAUDE_MODEL=claude-3-5-sonnet-latest
-GEMINI_MODEL=gemini-1.5-flash
+OPENAI_MODEL=gpt-5.5
+CLAUDE_MODEL=claude-opus-4-8
+GEMINI_MODEL=gemini-3.1-pro
 ```
 
 ## 如何扩展新的 Agent / Adding a New Agent

@@ -5,8 +5,15 @@ from __future__ import annotations
 from openai import OpenAI
 
 from agents.base import BaseAgent
+from utils.agent_errors import call_failed_message, missing_key_message
 from utils.config import get_settings
 from utils.demo import build_demo_response
+from utils.prompts import (
+    CLAUDE_ANSWER_HEADER,
+    GEMINI_ANSWER_HEADER,
+    GPT_ANSWER_HEADER,
+    ORIGINAL_QUESTION_MARKER,
+)
 
 
 class ModeratorAgent(BaseAgent):
@@ -51,19 +58,19 @@ class ModeratorAgent(BaseAgent):
             )
 
         if not self.settings.openai_api_key:
-            return "缺少 OPENAI_API_KEY，请在 .env 文件中配置。"
+            return missing_key_message("OPENAI_API_KEY")
 
         prompt = f"""
-用户原始问题：
+{ORIGINAL_QUESTION_MARKER}
 {question}
 
-GPT Agent 回答：
+{GPT_ANSWER_HEADER}
 {gpt_answer}
 
-Claude Agent 回答：
+{CLAUDE_ANSWER_HEADER}
 {claude_answer}
 
-Gemini Agent 回答：
+{GEMINI_ANSWER_HEADER}
 {gemini_answer}
 
 GPT / Claude / Gemini 交叉回应：
@@ -86,4 +93,4 @@ Critic Agent 批判：
             )
             return response.output_text.strip()
         except Exception as exc:
-            return f"{self.name} 调用失败：{exc}"
+            return call_failed_message(self.name, exc)

@@ -8,14 +8,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(PROJECT_ROOT / ".env")
 
 
-DEFAULT_OPENAI_MODEL = "gpt-4.1"
-DEFAULT_CLAUDE_MODEL = "claude-3-5-sonnet-latest"
-DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"
+DEFAULT_OPENAI_MODEL = "gpt-5.5"
+DEFAULT_CLAUDE_MODEL = "claude-opus-4-8"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-pro"
 TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 
 

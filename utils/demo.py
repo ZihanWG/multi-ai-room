@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from utils.roundtable import PEER_RESPONSE_MARKER
+from utils.prompts import (
+    CLAUDE_ANSWER_HEADER,
+    CONTINUE_INSTRUCTION,
+    CURRENT_IDENTITY_MARKER,
+    FOLLOW_UP_QUESTION_MARKER,
+    GEMINI_ANSWER_HEADER,
+    GPT_ANSWER_HEADER,
+    ORIGINAL_QUESTION_MARKER,
+    PEER_RESPONSE_MARKER,
+)
 
 
 def extract_marked_section(
@@ -27,20 +36,20 @@ def extract_display_question(question: str) -> str:
 
     follow_up = extract_marked_section(
         question,
-        "用户新的追问：",
-        ("\n\n请继续",),
+        FOLLOW_UP_QUESTION_MARKER,
+        (f"\n\n{CONTINUE_INSTRUCTION}",),
     )
     if follow_up is not None:
         return follow_up
 
     original_question = extract_marked_section(
         question,
-        "用户原始问题：",
+        ORIGINAL_QUESTION_MARKER,
         (
-            "\n\n你当前身份：",
-            "\n\nGPT Agent 回答：",
-            "\n\nClaude Agent 回答：",
-            "\n\nGemini Agent 回答：",
+            f"\n\n{CURRENT_IDENTITY_MARKER}",
+            f"\n\n{GPT_ANSWER_HEADER}",
+            f"\n\n{CLAUDE_ANSWER_HEADER}",
+            f"\n\n{GEMINI_ANSWER_HEADER}",
         ),
     )
     if original_question is not None:
