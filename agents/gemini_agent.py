@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 
 from agents.base import BaseAgent
+from agents.provider_calls import gemini_retry_attempts
 from utils.agent_errors import call_failed_message, missing_key_message
 from utils.config import get_settings
 from utils.demo import build_demo_response
@@ -36,12 +37,23 @@ class GeminiAgent(BaseAgent):
             return missing_key_message("GEMINI_API_KEY")
 
         try:
-            client = genai.Client(api_key=self.settings.gemini_api_key)
+            client = genai.Client(
+                api_key=self.settings.gemini_api_key,
+                http_options=types.HttpOptions(
+                    timeout=int(self.settings.request_timeout_seconds * 1000),
+                    retry_options=types.HttpRetryOptions(
+                        attempts=gemini_retry_attempts(
+                            self.settings.provider_max_retries
+                        ),
+                    ),
+                ),
+            )
             response = client.models.generate_content(
                 model=self.settings.gemini_model,
                 contents=question,
                 config=types.GenerateContentConfig(
                     system_instruction=self.role_prompt,
+                    max_output_tokens=self.settings.max_output_tokens,
                 ),
             )
             return (response.text or "").strip()

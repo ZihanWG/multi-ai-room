@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from utils.agent_errors import is_failure_output
+from utils.conversation import truncate_text
 
 FIRST_ROUND_AGENT_KEYS = ("GPT Agent", "Claude Agent", "Gemini Agent")
 CROSS_RESPONSE_AGENT_KEYS = (
@@ -18,6 +19,15 @@ CROSS_RESPONSE_AGENT_KEYS = (
     "Claude Agent 交叉回应",
     "Gemini Agent 交叉回应",
 )
+
+
+def limit_context(content: str, max_chars: int | None) -> str:
+    """Return context content within the configured per-agent limit."""
+
+    cleaned_content = content.strip() or "无输出。"
+    if max_chars is None:
+        return cleaned_content
+    return truncate_text(cleaned_content, max_chars)
 
 
 def get_peer_outputs(
@@ -46,21 +56,31 @@ def get_cross_response_outputs(outputs: Mapping[str, str]) -> dict[str, str]:
     }
 
 
-def build_review_context(outputs: Mapping[str, str]) -> str:
+def build_review_context(
+    outputs: Mapping[str, str],
+    *,
+    max_chars_per_agent: int | None = None,
+) -> str:
     """Build a compact context block for critic and moderator stages."""
 
     response_outputs = get_cross_response_outputs(outputs)
     if not response_outputs:
         return ""
 
-    sections = [
-        f"### {agent_name}\n{content.strip() or '无输出。'}"
-        for agent_name, content in response_outputs.items()
-    ]
+    sections = []
+    for agent_name, content in response_outputs.items():
+        sections.append(
+            f"### {agent_name}\n{limit_context(content, max_chars_per_agent)}"
+        )
     return "## GPT / Claude / Gemini 交叉回应记录\n\n" + "\n\n".join(sections)
 
 
-def answer_for_review(outputs: Mapping[str, str], key: str) -> str:
+def answer_for_review(
+    outputs: Mapping[str, str],
+    key: str,
+    *,
+    max_chars: int | None = None,
+) -> str:
     """Return an agent answer for Critic/Moderator, masking failed outputs.
 
     A failed output is replaced with a neutral note so the reviewer does not
@@ -70,4 +90,4 @@ def answer_for_review(outputs: Mapping[str, str], key: str) -> str:
     content = outputs.get(key, "")
     if is_failure_output(content):
         return f"（{key} 本轮未能产出有效回答，请在结论中忽略其内容）"
-    return content
+    return limit_context(content, max_chars)

@@ -7,10 +7,17 @@ from unittest.mock import patch
 
 from utils.config import (
     DEFAULT_CLAUDE_MODEL,
+    DEFAULT_CRITIC_PROVIDER,
     DEFAULT_GEMINI_MODEL,
+    DEFAULT_MAX_OUTPUT_TOKENS,
+    DEFAULT_MAX_PROMPT_CONTEXT_CHARS,
+    DEFAULT_MODERATOR_PROVIDER,
     DEFAULT_OPENAI_MODEL,
+    DEFAULT_PROVIDER_MAX_RETRIES,
+    DEFAULT_REQUEST_TIMEOUT_SECONDS,
     get_settings,
     is_truthy,
+    normalize_api_key,
 )
 
 
@@ -28,6 +35,18 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.claude_model, DEFAULT_CLAUDE_MODEL)
         self.assertEqual(settings.gemini_model, DEFAULT_GEMINI_MODEL)
         self.assertFalse(settings.demo_mode)
+        self.assertEqual(
+            settings.request_timeout_seconds,
+            DEFAULT_REQUEST_TIMEOUT_SECONDS,
+        )
+        self.assertEqual(settings.provider_max_retries, DEFAULT_PROVIDER_MAX_RETRIES)
+        self.assertEqual(settings.max_output_tokens, DEFAULT_MAX_OUTPUT_TOKENS)
+        self.assertEqual(
+            settings.max_prompt_context_chars,
+            DEFAULT_MAX_PROMPT_CONTEXT_CHARS,
+        )
+        self.assertEqual(settings.critic_provider, DEFAULT_CRITIC_PROVIDER)
+        self.assertEqual(settings.moderator_provider, DEFAULT_MODERATOR_PROVIDER)
 
     @patch.dict(
         "os.environ",
@@ -39,6 +58,12 @@ class SettingsTests(unittest.TestCase):
             "CLAUDE_MODEL": "claude-test-model",
             "GEMINI_MODEL": "gemini-test-model",
             "DEMO_MODE": "true",
+            "REQUEST_TIMEOUT_SECONDS": "12.5",
+            "PROVIDER_MAX_RETRIES": "0",
+            "MAX_OUTPUT_TOKENS": "900",
+            "MAX_PROMPT_CONTEXT_CHARS": "1400",
+            "CRITIC_PROVIDER": "anthropic",
+            "MODERATOR_PROVIDER": "gemini",
         },
         clear=True,
     )
@@ -52,6 +77,50 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.claude_model, "claude-test-model")
         self.assertEqual(settings.gemini_model, "gemini-test-model")
         self.assertTrue(settings.demo_mode)
+        self.assertEqual(settings.request_timeout_seconds, 12.5)
+        self.assertEqual(settings.provider_max_retries, 0)
+        self.assertEqual(settings.max_output_tokens, 900)
+        self.assertEqual(settings.max_prompt_context_chars, 1400)
+        self.assertEqual(settings.critic_provider, "anthropic")
+        self.assertEqual(settings.moderator_provider, "gemini")
+
+    @patch.dict(
+        "os.environ",
+        {
+            "OPENAI_API_KEY": " your_openai_api_key_here ",
+            "ANTHROPIC_API_KEY": "",
+            "GEMINI_API_KEY": "your_gemini_api_key_here",
+            "REQUEST_TIMEOUT_SECONDS": "-1",
+            "PROVIDER_MAX_RETRIES": "-1",
+            "MAX_OUTPUT_TOKENS": "not-a-number",
+            "MAX_PROMPT_CONTEXT_CHARS": "0",
+            "CRITIC_PROVIDER": "not-real",
+            "MODERATOR_PROVIDER": "not-real",
+        },
+        clear=True,
+    )
+    def test_placeholders_and_invalid_numbers_fall_back(self) -> None:
+        settings = get_settings()
+
+        self.assertIsNone(settings.openai_api_key)
+        self.assertIsNone(settings.anthropic_api_key)
+        self.assertIsNone(settings.gemini_api_key)
+        self.assertEqual(
+            settings.request_timeout_seconds,
+            DEFAULT_REQUEST_TIMEOUT_SECONDS,
+        )
+        self.assertEqual(settings.provider_max_retries, DEFAULT_PROVIDER_MAX_RETRIES)
+        self.assertEqual(settings.max_output_tokens, DEFAULT_MAX_OUTPUT_TOKENS)
+        self.assertEqual(
+            settings.max_prompt_context_chars,
+            DEFAULT_MAX_PROMPT_CONTEXT_CHARS,
+        )
+        self.assertEqual(settings.critic_provider, DEFAULT_CRITIC_PROVIDER)
+        self.assertEqual(settings.moderator_provider, DEFAULT_MODERATOR_PROVIDER)
+
+    def test_normalize_api_key_trims_real_values(self) -> None:
+        self.assertEqual(normalize_api_key(" real-key "), "real-key")
+        self.assertIsNone(normalize_api_key("your_provider_key_here"))
 
     def test_truthy_environment_values(self) -> None:
         for value in ["1", "true", "TRUE", "yes", "on", " On "]:

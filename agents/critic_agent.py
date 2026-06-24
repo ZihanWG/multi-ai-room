@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from openai import OpenAI
-
 from agents.base import BaseAgent
+from agents.provider_calls import (
+    generate_with_provider,
+    missing_any_provider_message,
+    provider_env_var,
+    resolve_provider_sequence,
+)
 from utils.agent_errors import call_failed_message, missing_key_message
 from utils.config import get_settings
 from utils.demo import build_demo_response
@@ -51,9 +55,6 @@ class CriticAgent(BaseAgent):
                 ),
             )
 
-        if not self.settings.openai_api_key:
-            return missing_key_message("OPENAI_API_KEY")
-
         prompt = f"""
 {ORIGINAL_QUESTION_MARKER}
 {question}
@@ -73,15 +74,28 @@ GPT / Claude / Gemini 交叉回应：
 请对前三个 Agent 的首轮回答和交叉回应进行批判性评审。必须明确指出问题，不要为了平衡而平均分配优缺点。
 """.strip()
 
-        try:
-            client = OpenAI(api_key=self.settings.openai_api_key)
-            response = client.responses.create(
-                model=self.settings.openai_model,
-                input=[
-                    {"role": "system", "content": self.role_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-            )
-            return response.output_text.strip()
-        except Exception as exc:
-            return call_failed_message(self.name, exc)
+        provider_sequence = resolve_provider_sequence(
+            self.settings,
+            self.settings.critic_provider,
+        )
+        if not provider_sequence:
+            if self.settings.critic_provider == "auto":
+                return missing_any_provider_message()
+            return missing_key_message(provider_env_var(self.settings.critic_provider))
+
+        last_exception: Exception | None = None
+        for provider in provider_sequence:
+            try:
+                return generate_with_provider(
+                    settings=self.settings,
+                    provider=provider,
+                    system_prompt=self.role_prompt,
+                    user_prompt=prompt,
+                )
+            except Exception as exc:
+                last_exception = exc
+
+        return call_failed_message(
+            self.name,
+            last_exception or RuntimeError("No provider produced a response."),
+        )

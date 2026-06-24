@@ -35,10 +35,14 @@ class ClaudeAgent(BaseAgent):
             return missing_key_message("ANTHROPIC_API_KEY")
 
         try:
-            client = Anthropic(api_key=self.settings.anthropic_api_key)
+            client = Anthropic(
+                api_key=self.settings.anthropic_api_key,
+                timeout=self.settings.request_timeout_seconds,
+                max_retries=self.settings.provider_max_retries,
+            )
             response = client.messages.create(
                 model=self.settings.claude_model,
-                max_tokens=1200,
+                max_tokens=self.settings.max_output_tokens,
                 system=self.role_prompt,
                 messages=[
                     {

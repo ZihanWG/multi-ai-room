@@ -54,6 +54,9 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(truncate_text("short", 10), "short")
         self.assertIn("已截断", truncate_text("a" * 50, 20))
 
+    def test_truncate_text_handles_tiny_limits(self) -> None:
+        self.assertEqual(truncate_text("abcdef", 3), "abc")
+
 
 if __name__ == "__main__":
     unittest.main()

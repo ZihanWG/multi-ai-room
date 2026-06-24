@@ -2,24 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import streamlit as st
 
-from agents import ClaudeAgent, CriticAgent, GeminiAgent, ModeratorAgent, OpenAIAgent
 from styles import apply_page_styles
 from utils.config import get_settings
 from utils.conversation import build_follow_up_prompt, coerce_outputs
-from utils.discussion import (
-    answer_for_review,
-    build_review_context,
-    get_cross_response_outputs,
-    get_peer_outputs,
-)
+from utils.discussion_runner import DiscussionEvent, run_discussion_flow
 from utils.export import build_conversation_markdown, build_discussion_markdown
-from utils.roundtable import build_peer_response_prompt
 
 
 @dataclass(frozen=True)
@@ -474,7 +465,12 @@ def render_follow_up_form(
     with st.container(border=True):
         st.markdown(cleaned_question)
 
-    contextual_question = build_follow_up_prompt(cleaned_question, turns)
+    settings = get_settings()
+    contextual_question = build_follow_up_prompt(
+        cleaned_question,
+        turns,
+        max_chars_per_agent=settings.max_prompt_context_chars,
+    )
     outputs = run_discussion(
         contextual_question,
         show_process=show_process,
@@ -495,6 +491,21 @@ def render_sidebar_controls() -> tuple[bool, bool]:
 
         if getattr(settings, "demo_mode", False):
             st.info("Demo 模式已启用：不会调用外部模型 API。")
+
+        st.divider()
+        st.markdown("#### 运行边界")
+        st.caption(
+            f"每轮基础模型调用：{len(DISCUSSION_STAGES)} 次；"
+            "auto fallback 失败重试时可能增加。"
+        )
+        st.caption(f"单次请求超时：{settings.request_timeout_seconds:g} 秒")
+        st.caption(f"服务商重试次数：{settings.provider_max_retries}")
+        st.caption(f"单次最大输出：{settings.max_output_tokens} tokens")
+        st.caption(f"后续上下文上限：{settings.max_prompt_context_chars} 字符/Agent")
+        st.caption(
+            f"Critic provider：{settings.critic_provider}；"
+            f"Moderator provider：{settings.moderator_provider}"
+        )
 
         st.divider()
         st.markdown("#### 说明")
@@ -540,204 +551,73 @@ def render_initial_question_form() -> tuple[bool, str]:
     return submitted, question
 
 
-def run_agent_step(
-    profile: AgentProfile,
-    runner: Callable[[], str],
-    outputs: dict[str, str],
-    timeline_placeholder: st.delta_generator.DeltaGenerator,
-    progress_bar: st.delta_generator.DeltaGenerator,
-    step_index: int,
-    *,
-    show_process: bool,
-    expand_outputs: bool,
-) -> None:
-    """Run one agent, update progress, and render its result."""
-
-    if show_process:
-        render_discussion_timeline(
-            timeline_placeholder, outputs, active_keys={profile.key}
-        )
-
-    with st.spinner(profile.spinner):
-        outputs[profile.key] = runner()
-
-    progress_bar.progress(
-        step_index / len(DISCUSSION_STAGES),
-        text=f"已完成：{profile.title}",
-    )
-
-    if show_process:
-        render_discussion_timeline(timeline_placeholder, outputs, active_keys=None)
-
-    render_agent_output(profile, outputs[profile.key], expanded=expand_outputs)
-
-
-def run_first_round(
-    runners: dict[str, Callable[[], str]],
-    outputs: dict[str, str],
-    timeline_placeholder: st.delta_generator.DeltaGenerator,
-    progress_bar: st.delta_generator.DeltaGenerator,
-    *,
-    show_process: bool,
-    expand_outputs: bool,
-) -> None:
-    """Run the independent first-round agents concurrently, then render them.
-
-    GPT / Claude / Gemini all answer the raw question with no dependency on one
-    another, so they run in parallel threads (network-bound I/O). All Streamlit
-    rendering stays on the main thread; the worker threads only call ``run``.
-    The three cards therefore appear together once the batch finishes.
-    """
-
-    keys = list(runners)
-    profiles = [get_profile(key) for key in keys]
-
-    if show_process:
-        render_discussion_timeline(timeline_placeholder, outputs, active_keys=set(keys))
-
-    spinner_text = (
-        " / ".join(profile.title for profile in profiles) + " 正在并行分析..."
-    )
-    with st.spinner(spinner_text):
-        with ThreadPoolExecutor(max_workers=len(runners)) as executor:
-            futures = {key: executor.submit(runner) for key, runner in runners.items()}
-            for key, future in futures.items():
-                outputs[key] = future.result()
-
-    progress_bar.progress(
-        len(runners) / len(DISCUSSION_STAGES),
-        text=f"已完成首轮观点（{len(runners)} 个 Agent）",
-    )
-
-    if show_process:
-        render_discussion_timeline(timeline_placeholder, outputs, active_keys=None)
-
-    for profile in profiles:
-        render_agent_output(profile, outputs[profile.key], expanded=expand_outputs)
-
-
 def run_discussion(
     question: str,
     *,
     show_process: bool,
     expand_outputs: bool,
 ) -> dict[str, str]:
-    """Run all agents in the required order."""
+    """Run all agents and render progress events."""
 
     outputs: dict[str, str] = {}
+    settings = get_settings()
     progress_bar = st.progress(0, text="准备开始讨论")
     timeline_placeholder = st.empty()
-    gpt_agent = OpenAIAgent()
-    claude_agent = ClaudeAgent()
-    gemini_agent = GeminiAgent()
 
     if show_process:
         render_discussion_timeline(timeline_placeholder, outputs, active_keys=None)
 
-    run_first_round(
-        {
-            "GPT Agent": lambda: gpt_agent.run(question),
-            "Claude Agent": lambda: claude_agent.run(question),
-            "Gemini Agent": lambda: gemini_agent.run(question),
-        },
-        outputs,
-        timeline_placeholder,
-        progress_bar,
-        show_process=show_process,
-        expand_outputs=expand_outputs,
-    )
-    run_agent_step(
-        get_profile("GPT Agent 交叉回应"),
-        lambda: gpt_agent.run(
-            build_peer_response_prompt(
-                agent_name="GPT Agent",
-                question=question,
-                own_output=outputs["GPT Agent"],
-                peer_outputs=get_peer_outputs(outputs, current_agent_key="GPT Agent"),
-            )
-        ),
-        outputs,
-        timeline_placeholder,
-        progress_bar,
-        4,
-        show_process=show_process,
-        expand_outputs=expand_outputs,
-    )
-    run_agent_step(
-        get_profile("Claude Agent 交叉回应"),
-        lambda: claude_agent.run(
-            build_peer_response_prompt(
-                agent_name="Claude Agent",
-                question=question,
-                own_output=outputs["Claude Agent"],
-                peer_outputs=get_peer_outputs(
+    def handle_discussion_event(event: DiscussionEvent) -> None:
+        outputs.clear()
+        outputs.update(event.outputs)
+
+        if event.kind == "active":
+            if show_process:
+                render_discussion_timeline(
+                    timeline_placeholder,
                     outputs,
-                    current_agent_key="Claude Agent",
-                ),
-                prior_responses=get_cross_response_outputs(outputs),
+                    active_keys=set(event.active_keys),
+                )
+            return
+
+        if event.kind != "completed":
+            return
+
+        completed_count = sum(
+            1 for profile in DISCUSSION_STAGES if profile.key in outputs
+        )
+        if len(event.completed_keys) > 1:
+            progress_text = f"已完成首轮观点（{len(event.completed_keys)} 个 Agent）"
+        elif event.completed_keys:
+            progress_text = f"已完成：{get_profile(event.completed_keys[0]).title}"
+        else:
+            progress_text = "已完成"
+
+        progress_bar.progress(
+            completed_count / len(DISCUSSION_STAGES),
+            text=progress_text,
+        )
+
+        if show_process:
+            render_discussion_timeline(
+                timeline_placeholder,
+                outputs,
+                active_keys=None,
             )
-        ),
-        outputs,
-        timeline_placeholder,
-        progress_bar,
-        5,
-        show_process=show_process,
-        expand_outputs=expand_outputs,
-    )
-    run_agent_step(
-        get_profile("Gemini Agent 交叉回应"),
-        lambda: gemini_agent.run(
-            build_peer_response_prompt(
-                agent_name="Gemini Agent",
-                question=question,
-                own_output=outputs["Gemini Agent"],
-                peer_outputs=get_peer_outputs(
-                    outputs,
-                    current_agent_key="Gemini Agent",
-                ),
-                prior_responses=get_cross_response_outputs(outputs),
+
+        for stage_key in event.completed_keys:
+            render_agent_output(
+                get_profile(stage_key),
+                outputs[stage_key],
+                expanded=expand_outputs,
             )
-        ),
-        outputs,
-        timeline_placeholder,
-        progress_bar,
-        6,
-        show_process=show_process,
-        expand_outputs=expand_outputs,
-    )
-    run_agent_step(
-        get_profile("Critic Agent"),
-        lambda: CriticAgent().run(
-            question=question,
-            gpt_answer=answer_for_review(outputs, "GPT Agent"),
-            claude_answer=answer_for_review(outputs, "Claude Agent"),
-            gemini_answer=answer_for_review(outputs, "Gemini Agent"),
-            peer_discussion=build_review_context(outputs),
-        ),
-        outputs,
-        timeline_placeholder,
-        progress_bar,
-        7,
-        show_process=show_process,
-        expand_outputs=expand_outputs,
-    )
-    run_agent_step(
-        get_profile("Moderator Agent"),
-        lambda: ModeratorAgent().run(
-            question=question,
-            gpt_answer=answer_for_review(outputs, "GPT Agent"),
-            claude_answer=answer_for_review(outputs, "Claude Agent"),
-            gemini_answer=answer_for_review(outputs, "Gemini Agent"),
-            critic_answer=answer_for_review(outputs, "Critic Agent"),
-            peer_discussion=build_review_context(outputs),
-        ),
-        outputs,
-        timeline_placeholder,
-        progress_bar,
-        8,
-        show_process=show_process,
-        expand_outputs=expand_outputs,
-    )
+
+    with st.spinner("多 AI 讨论正在进行..."):
+        outputs = run_discussion_flow(
+            question,
+            max_context_chars=settings.max_prompt_context_chars,
+            on_event=handle_discussion_event,
+        )
 
     render_summary_panel(outputs)
     render_final_answer(outputs["Moderator Agent"])

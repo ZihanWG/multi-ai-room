@@ -94,7 +94,8 @@ multi-ai-room/
 │   ├── claude_agent.py
 │   ├── gemini_agent.py
 │   ├── critic_agent.py
-│   └── moderator_agent.py
+│   ├── moderator_agent.py
+│   └── provider_calls.py
 ├── utils/
 │   ├── __init__.py
 │   ├── agent_errors.py
@@ -102,6 +103,7 @@ multi-ai-room/
 │   ├── config.py
 │   ├── demo.py
 │   ├── discussion.py
+│   ├── discussion_runner.py
 │   ├── export.py
 │   ├── prompts.py
 │   └── roundtable.py
@@ -113,7 +115,9 @@ multi-ai-room/
     ├── test_config.py
     ├── test_demo.py
     ├── test_discussion.py
+    ├── test_discussion_runner.py
     ├── test_export.py
+    ├── test_provider_calls.py
     └── test_roundtable.py
 ```
 
@@ -172,12 +176,28 @@ OPENAI_MODEL=gpt-5.5
 CLAUDE_MODEL=claude-opus-4-8
 GEMINI_MODEL=gemini-3.1-pro
 
+REQUEST_TIMEOUT_SECONDS=60
+PROVIDER_MAX_RETRIES=2
+MAX_OUTPUT_TOKENS=1200
+MAX_PROMPT_CONTEXT_CHARS=1800
+
+CRITIC_PROVIDER=auto
+MODERATOR_PROVIDER=auto
+
 DEMO_MODE=false
 ```
 
 可以只配置部分 API Key。未配置的模型会在对应 Agent 输出区域显示错误提示，不会让应用整体崩溃。
 
 You may configure only some API keys. Missing providers show clear messages in their agent output blocks without crashing the app.
+
+`REQUEST_TIMEOUT_SECONDS` 控制单次服务商请求超时；`PROVIDER_MAX_RETRIES` 控制服务商 SDK 层重试次数，设置为 `0` 可关闭重试；`MAX_OUTPUT_TOKENS` 控制单次模型调用最大输出；`MAX_PROMPT_CONTEXT_CHARS` 控制每个前置 Agent 输出被带入后续 prompt 的最大字符数，避免追问和交叉回应时上下文无限膨胀。
+
+`REQUEST_TIMEOUT_SECONDS` controls the timeout for each provider request; `PROVIDER_MAX_RETRIES` controls SDK-level provider retries and can be set to `0` to disable retries; `MAX_OUTPUT_TOKENS` caps each model response; `MAX_PROMPT_CONTEXT_CHARS` limits how much prior agent output is copied into later prompts.
+
+`CRITIC_PROVIDER` 和 `MODERATOR_PROVIDER` 可设置为 `auto`、`openai`、`anthropic` 或 `gemini`。默认 `auto` 会按 OpenAI -> Anthropic -> Gemini 的顺序选择已配置 API Key 的服务商；如果自动模式下前一个服务商调用失败，会尝试下一个可用服务商。
+
+`CRITIC_PROVIDER` and `MODERATOR_PROVIDER` accept `auto`, `openai`, `anthropic`, or `gemini`. The default `auto` mode tries configured providers in OpenAI -> Anthropic -> Gemini order and falls back to the next available provider if a call fails.
 
 ## Demo 模式 / Demo Mode
 

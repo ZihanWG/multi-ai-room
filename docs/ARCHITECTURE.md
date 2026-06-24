@@ -1,24 +1,27 @@
 # 架构 / Architecture
 
-这个项目刻意保持小而清晰。应用主要分为三层：
+这个项目刻意保持小而清晰。应用主要分为四层：
 
-This project is intentionally small and clear. The app has three main layers:
+This project is intentionally small and clear. The app has four main layers:
 
 1. `app.py` 中的 Streamlit UI。
    Streamlit UI in `app.py`.
-2. `agents/` 中的 Agent 实现。
+2. `utils/discussion_runner.py` 中的讨论编排。
+   Discussion orchestration in `utils/discussion_runner.py`.
+3. `agents/` 中的 Agent 实现。
    Agent implementations in `agents/`.
-3. `utils/config.py` 中的环境配置。
-   Environment configuration in `utils/config.py`.
+4. `utils/config.py` 和其他 `utils/` 模块中的配置与纯函数 helper。
+   Configuration and pure helper functions in `utils/config.py` and other `utils/` modules.
 
 ## 请求流程 / Request Flow
 
 ```mermaid
 flowchart TD
     User["用户输入问题 / User enters a question"] --> UI["Streamlit app.py"]
-    UI --> GPT["OpenAIAgent"]
-    UI --> Claude["ClaudeAgent"]
-    UI --> Gemini["GeminiAgent"]
+    UI --> Runner["utils/discussion_runner.py"]
+    Runner --> GPT["OpenAIAgent"]
+    Runner --> Claude["ClaudeAgent"]
+    Runner --> Gemini["GeminiAgent"]
     GPT --> GPTRound["GPT 交叉回应 / GPT peer response"]
     Claude --> GPTRound
     Gemini --> GPTRound
@@ -101,6 +104,10 @@ API keys are loaded from `.env` by `utils/config.py`. Missing keys are allowed: 
 如果 `DEMO_MODE=true`，Agent 会返回 `utils/demo.py` 中的本地模拟内容，不会调用外部服务。
 
 If `DEMO_MODE=true`, agents return local deterministic sample responses from `utils/demo.py` and do not call external services.
+
+`CriticAgent` 和 `ModeratorAgent` 默认使用 `auto` provider 选择：按 OpenAI、Anthropic、Gemini 的顺序选择已配置 API Key 的服务商，并在自动模式下尝试下一个可用服务商作为 fallback。也可以通过 `CRITIC_PROVIDER` 和 `MODERATOR_PROVIDER` 显式指定 `openai`、`anthropic` 或 `gemini`。
+
+`CriticAgent` and `ModeratorAgent` default to `auto` provider selection: they try configured providers in OpenAI, Anthropic, Gemini order and fall back to the next available provider in automatic mode. `CRITIC_PROVIDER` and `MODERATOR_PROVIDER` can explicitly select `openai`, `anthropic`, or `gemini`.
 
 ## 导出 / Export
 

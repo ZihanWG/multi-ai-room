@@ -50,6 +50,15 @@ class DiscussionContextTests(unittest.TestCase):
         self.assertIn("### GPT Agent 交叉回应", context)
         self.assertIn("回应内容", context)
 
+    def test_build_review_context_can_truncate_responses(self) -> None:
+        context = build_review_context(
+            {"GPT Agent 交叉回应": "a" * 80},
+            max_chars_per_agent=30,
+        )
+
+        self.assertIn("已截断", context)
+        self.assertLess(len(context), 120)
+
     def test_answer_for_review_passthrough(self) -> None:
         self.assertEqual(
             answer_for_review({"GPT Agent": "真实分析"}, "GPT Agent"), "真实分析"
@@ -60,6 +69,11 @@ class DiscussionContextTests(unittest.TestCase):
         masked = answer_for_review(outputs, "Claude Agent")
         self.assertIn("未能产出有效回答", masked)
         self.assertNotIn("ANTHROPIC_API_KEY", masked)
+
+    def test_answer_for_review_can_truncate_valid_content(self) -> None:
+        masked = answer_for_review({"GPT Agent": "a" * 80}, "GPT Agent", max_chars=30)
+        self.assertIn("已截断", masked)
+        self.assertLessEqual(len(masked), 30)
 
 
 if __name__ == "__main__":

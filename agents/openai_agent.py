@@ -35,13 +35,18 @@ class OpenAIAgent(BaseAgent):
             return missing_key_message("OPENAI_API_KEY")
 
         try:
-            client = OpenAI(api_key=self.settings.openai_api_key)
+            client = OpenAI(
+                api_key=self.settings.openai_api_key,
+                timeout=self.settings.request_timeout_seconds,
+                max_retries=self.settings.provider_max_retries,
+            )
             response = client.responses.create(
                 model=self.settings.openai_model,
                 input=[
                     {"role": "system", "content": self.role_prompt},
                     {"role": "user", "content": question},
                 ],
+                max_output_tokens=self.settings.max_output_tokens,
             )
             return response.output_text.strip()
         except Exception as exc:

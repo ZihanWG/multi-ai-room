@@ -24,7 +24,11 @@ def truncate_text(text: str, max_chars: int) -> str:
     cleaned = text.strip()
     if len(cleaned) <= max_chars:
         return cleaned
-    return cleaned[: max_chars - 20].rstrip() + "\n...（已截断）"
+
+    suffix = "\n...（已截断）"
+    if max_chars <= len(suffix):
+        return cleaned[:max_chars].rstrip()
+    return cleaned[: max_chars - len(suffix)].rstrip() + suffix
 
 
 def coerce_outputs(value: object) -> dict[str, str]:
