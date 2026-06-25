@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import unittest
+from collections.abc import Sequence
 
 from utils.agent_errors import CALL_FAILED_MARKER
+from utils.attachments import PreparedAttachment
 from utils.discussion_runner import (
     DISCUSSION_STAGE_KEYS,
     DiscussionEvent,
@@ -19,7 +21,11 @@ class SequenceQuestionAgent:
         self.responses = responses
         self.prompts: list[str] = []
 
-    def run(self, question: str) -> str:
+    def run(
+        self,
+        question: str,
+        attachments: Sequence[PreparedAttachment] | None = None,
+    ) -> str:
         self.prompts.append(question)
         index = len(self.prompts) - 1
         if index >= len(self.responses):
@@ -30,8 +36,28 @@ class SequenceQuestionAgent:
 class ExplodingQuestionAgent:
     """Fake agent that always fails."""
 
-    def run(self, question: str) -> str:
+    def run(
+        self,
+        question: str,
+        attachments: Sequence[PreparedAttachment] | None = None,
+    ) -> str:
         raise RuntimeError("agent exploded")
+
+
+class RecordingAttachmentQuestionAgent:
+    """Fake agent that records attachment kwargs."""
+
+    def __init__(self, response: str) -> None:
+        self.response = response
+        self.attachments_seen: list[object] = []
+
+    def run(
+        self,
+        question: str,
+        attachments: Sequence[PreparedAttachment] | None = None,
+    ) -> str:
+        self.attachments_seen.append(attachments)
+        return self.response
 
 
 class RecordingCriticAgent:
@@ -161,6 +187,34 @@ class DiscussionRunnerTests(unittest.TestCase):
         self.assertNotIn("c" * 80, gpt.prompts[1])
         self.assertIn("已截断", critic.calls[0]["gpt_answer"])
         self.assertLessEqual(len(critic.calls[0]["gpt_answer"]), 30)
+
+    def test_run_discussion_flow_passes_attachments_to_first_round(self) -> None:
+        attachment = PreparedAttachment(
+            name="diagram.png",
+            mime_type="image/png",
+            size_bytes=3,
+            content=b"abc",
+            kind="image",
+        )
+        gpt = RecordingAttachmentQuestionAgent("gpt output")
+        claude = RecordingAttachmentQuestionAgent("claude output")
+        gemini = RecordingAttachmentQuestionAgent("gemini output")
+
+        run_discussion_flow(
+            "测试问题",
+            max_context_chars=80,
+            attachments=[attachment],
+            gpt_agent=gpt,
+            claude_agent=claude,
+            gemini_agent=gemini,
+            critic_agent_factory=RecordingCriticAgent,
+            moderator_agent_factory=RecordingModeratorAgent,
+        )
+
+        self.assertEqual(gpt.attachments_seen[0], [attachment])
+        self.assertEqual(claude.attachments_seen[0], [attachment])
+        self.assertEqual(gemini.attachments_seen[0], [attachment])
+        self.assertIsNone(gpt.attachments_seen[1])
 
 
 if __name__ == "__main__":

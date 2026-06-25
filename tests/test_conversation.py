@@ -32,6 +32,57 @@ class ConversationTests(unittest.TestCase):
         self.assertIn("继续追问", prompt)
         self.assertIn("同一谈话窗口", prompt)
 
+    def test_build_follow_up_prompt_includes_attachment_records(self) -> None:
+        prompt = build_follow_up_prompt(
+            "继续追问",
+            [
+                {
+                    "question": "第一问",
+                    "attachments": [
+                        {
+                            "name": "notes.txt",
+                            "mime_type": "text/plain",
+                            "size_bytes": 5,
+                            "kind": "text",
+                            "text_excerpt": "hello",
+                            "text_truncated": False,
+                        }
+                    ],
+                    "outputs": {"Moderator Agent": "最终结论"},
+                }
+            ],
+        )
+
+        self.assertIn("notes.txt", prompt)
+        self.assertIn("hello", prompt)
+        self.assertIn("继续追问", prompt)
+
+    def test_build_follow_up_prompt_limits_attachment_record_excerpts(self) -> None:
+        prompt = build_follow_up_prompt(
+            "继续追问",
+            [
+                {
+                    "question": "第一问",
+                    "attachments": [
+                        {
+                            "name": "long-notes.txt",
+                            "mime_type": "text/plain",
+                            "size_bytes": 200,
+                            "kind": "text",
+                            "text_excerpt": "a" * 200,
+                            "text_truncated": False,
+                        }
+                    ],
+                    "outputs": {"Moderator Agent": "最终结论"},
+                }
+            ],
+            max_chars_per_attachment=40,
+        )
+
+        self.assertIn("long-notes.txt", prompt)
+        self.assertIn("历史附件摘录已截断", prompt)
+        self.assertNotIn("a" * 200, prompt)
+
     def test_build_follow_up_prompt_limits_history_turns(self) -> None:
         prompt = build_follow_up_prompt(
             "第三轮追问",

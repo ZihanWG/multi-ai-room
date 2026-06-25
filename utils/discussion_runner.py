@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Protocol
 
 from agents import ClaudeAgent, CriticAgent, GeminiAgent, ModeratorAgent, OpenAIAgent
 from utils.agent_errors import call_failed_message
+from utils.attachments import PreparedAttachment
 from utils.discussion import (
     answer_for_review,
     build_review_context,
@@ -34,7 +35,11 @@ DISCUSSION_STAGE_KEYS = (
 class QuestionAgent(Protocol):
     """Agent interface for first-round and peer-response calls."""
 
-    def run(self, question: str) -> str:
+    def run(
+        self,
+        question: str,
+        attachments: Sequence[PreparedAttachment] | None = None,
+    ) -> str:
         """Run the agent for a plain prompt."""
         ...
 
@@ -182,6 +187,7 @@ def run_discussion_flow(
     question: str,
     *,
     max_context_chars: int,
+    attachments: Sequence[PreparedAttachment] | None = None,
     on_event: DiscussionEventHandler | None = None,
     gpt_agent: QuestionAgent | None = None,
     claude_agent: QuestionAgent | None = None,
@@ -198,9 +204,15 @@ def run_discussion_flow(
 
     run_first_round(
         {
-            "GPT Agent": lambda: gpt_runner.run(question),
-            "Claude Agent": lambda: claude_runner.run(question),
-            "Gemini Agent": lambda: gemini_runner.run(question),
+            "GPT Agent": lambda: gpt_runner.run(question, attachments=attachments),
+            "Claude Agent": lambda: claude_runner.run(
+                question,
+                attachments=attachments,
+            ),
+            "Gemini Agent": lambda: gemini_runner.run(
+                question,
+                attachments=attachments,
+            ),
         },
         outputs,
         on_event=on_event,

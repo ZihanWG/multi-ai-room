@@ -34,6 +34,10 @@ The format follows the spirit of Keep a Changelog, and this project will use sem
   Added visible peer-response stages for GPT, Claude, and Gemini.
 - 增加 `ruff` 和 `mypy` 静态检查（lint 与类型检查），并接入 CI、`Makefile` 和 `requirements-dev.txt`。
   Added `ruff` and `mypy` static checks (lint and type-check) wired into CI, the `Makefile`, and `requirements-dev.txt`.
+- 增加上传文件和图片能力：文本附件会摘录进讨论上下文，常见图片会在 UI 中预览并发送给支持多模态输入的首轮 Agent。
+  Added file and image uploads: text attachments are excerpted into discussion context, and common images are previewed in the UI and sent to first-round agents that support multimodal input.
+- 增加附件安全边界：限制上传数量和大小、拒绝疑似密钥文件、校验图片内容，并在 prompt 中标记附件内容为不可信资料。
+  Added attachment safety boundaries: upload count and size limits, likely-secret file rejection, image content validation, and prompt labeling that treats attachment contents as untrusted material.
 
 ### Changed / 变更
 
@@ -43,6 +47,8 @@ The format follows the spirit of Keep a Changelog, and this project will use sem
   Failed or missing-key agent outputs are no longer passed into later agents' prompts as content.
 - 共享提示词标记集中到 `utils/prompts.py`；拆分 `app.py`，样式移至 `styles.py`、讨论上下文助手移至 `utils/discussion.py`。
   Shared prompt markers are centralized in `utils/prompts.py`; `app.py` is split, with styles moved to `styles.py` and discussion context helpers to `utils/discussion.py`.
+- 追问上下文中的历史附件摘录现在由 `MAX_ATTACHMENT_CONTEXT_CHARS` 单独限制，避免多轮附件内容无限膨胀。
+  Historical attachment excerpts in follow-up context are now separately limited by `MAX_ATTACHMENT_CONTEXT_CHARS`, preventing unbounded multi-turn attachment growth.
 
 ### Fixed / 修复
 

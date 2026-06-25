@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any, cast
+
 from anthropic import Anthropic
 
 from agents.base import BaseAgent
+from agents.provider_calls import build_anthropic_user_content
 from utils.agent_errors import call_failed_message, missing_key_message
+from utils.attachments import PreparedAttachment
 from utils.config import get_settings
 from utils.demo import build_demo_response
 
@@ -25,7 +30,11 @@ class ClaudeAgent(BaseAgent):
         )
         self.settings = get_settings()
 
-    def run(self, question: str) -> str:
+    def run(
+        self,
+        question: str,
+        attachments: Sequence[PreparedAttachment] | None = None,
+    ) -> str:
         """Generate a Claude Agent response for the user's question."""
 
         if getattr(self.settings, "demo_mode", False):
@@ -44,12 +53,18 @@ class ClaudeAgent(BaseAgent):
                 model=self.settings.claude_model,
                 max_tokens=self.settings.max_output_tokens,
                 system=self.role_prompt,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": question,
-                    }
-                ],
+                messages=cast(
+                    Any,
+                    [
+                        {
+                            "role": "user",
+                            "content": build_anthropic_user_content(
+                                question,
+                                attachments,
+                            ),
+                        }
+                    ],
+                ),
             )
             return "".join(
                 block.text for block in response.content if block.type == "text"

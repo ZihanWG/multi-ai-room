@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any, cast
+
 from openai import OpenAI
 
 from agents.base import BaseAgent
+from agents.provider_calls import build_openai_user_content
 from utils.agent_errors import call_failed_message, missing_key_message
+from utils.attachments import PreparedAttachment
 from utils.config import get_settings
 from utils.demo import build_demo_response
 
@@ -25,7 +30,11 @@ class OpenAIAgent(BaseAgent):
         )
         self.settings = get_settings()
 
-    def run(self, question: str) -> str:
+    def run(
+        self,
+        question: str,
+        attachments: Sequence[PreparedAttachment] | None = None,
+    ) -> str:
         """Generate a GPT Agent response for the user's question."""
 
         if getattr(self.settings, "demo_mode", False):
@@ -42,10 +51,19 @@ class OpenAIAgent(BaseAgent):
             )
             response = client.responses.create(
                 model=self.settings.openai_model,
-                input=[
-                    {"role": "system", "content": self.role_prompt},
-                    {"role": "user", "content": question},
-                ],
+                input=cast(
+                    Any,
+                    [
+                        {"role": "system", "content": self.role_prompt},
+                        {
+                            "role": "user",
+                            "content": build_openai_user_content(
+                                question,
+                                attachments,
+                            ),
+                        },
+                    ],
+                ),
                 max_output_tokens=self.settings.max_output_tokens,
             )
             return response.output_text.strip()

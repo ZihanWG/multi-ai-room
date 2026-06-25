@@ -47,6 +47,8 @@ A local multi-agent discussion app built with Python 3.12 and Streamlit. After t
   Supports exporting discussion results as Markdown.
 - 支持在同一谈话窗口继续追问，并自动携带前几轮上下文。
   Supports follow-up questions in the same conversation window with prior context included automatically.
+- 支持上传文本文件、代码文件、CSV/JSON/Markdown 和常见图片；文本会摘录进上下文，图片会校验后预览并发送给支持多模态输入的首轮 Agent。上传文件有数量、单文件大小、图片大小和总大小限制，疑似密钥文件会被拒绝。
+  Supports uploading text files, code files, CSV/JSON/Markdown, and common images; text is excerpted into context, while images are validated, previewed, and sent to first-round agents that support multimodal input. Uploads have count, per-file, image, and total-size limits, and likely secret files are rejected.
 - 主题跟随 Streamlit 顶部菜单里的 Light/Dark/System：浅色模式保留默认浅色界面，深色模式启用项目暗色配色；侧边栏可以控制是否显示讨论过程、是否默认展开 Agent 原文。
   The theme follows Streamlit's built-in Light/Dark/System selector: light mode keeps the default light interface, while dark mode enables the app's dark palette; sidebar controls can show/hide the discussion process and expand/collapse raw agent outputs.
 - 讨论过程展示的是面向用户的阶段记录和分析摘要，不是模型隐藏思维链。
@@ -98,6 +100,7 @@ multi-ai-room/
 │   └── provider_calls.py
 ├── utils/
 │   ├── __init__.py
+│   ├── attachments.py
 │   ├── agent_errors.py
 │   ├── conversation.py
 │   ├── config.py
@@ -109,6 +112,7 @@ multi-ai-room/
 │   └── roundtable.py
 └── tests/
     ├── __init__.py
+    ├── test_attachments.py
     ├── test_agent_errors.py
     ├── test_agents_missing_keys.py
     ├── test_conversation.py
@@ -180,6 +184,7 @@ REQUEST_TIMEOUT_SECONDS=60
 PROVIDER_MAX_RETRIES=2
 MAX_OUTPUT_TOKENS=1200
 MAX_PROMPT_CONTEXT_CHARS=1800
+MAX_ATTACHMENT_CONTEXT_CHARS=1200
 
 CRITIC_PROVIDER=auto
 MODERATOR_PROVIDER=auto
@@ -191,9 +196,9 @@ DEMO_MODE=false
 
 You may configure only some API keys. Missing providers show clear messages in their agent output blocks without crashing the app.
 
-`REQUEST_TIMEOUT_SECONDS` 控制单次服务商请求超时；`PROVIDER_MAX_RETRIES` 控制服务商 SDK 层重试次数，设置为 `0` 可关闭重试；`MAX_OUTPUT_TOKENS` 控制单次模型调用最大输出；`MAX_PROMPT_CONTEXT_CHARS` 控制每个前置 Agent 输出被带入后续 prompt 的最大字符数，避免追问和交叉回应时上下文无限膨胀。
+`REQUEST_TIMEOUT_SECONDS` 控制单次服务商请求超时；`PROVIDER_MAX_RETRIES` 控制服务商 SDK 层重试次数，设置为 `0` 可关闭重试；`MAX_OUTPUT_TOKENS` 控制单次模型调用最大输出；`MAX_PROMPT_CONTEXT_CHARS` 控制每个前置 Agent 输出被带入后续 prompt 的最大字符数；`MAX_ATTACHMENT_CONTEXT_CHARS` 控制每个历史附件文本摘录被带入追问 prompt 的最大字符数，避免追问和交叉回应时上下文无限膨胀。
 
-`REQUEST_TIMEOUT_SECONDS` controls the timeout for each provider request; `PROVIDER_MAX_RETRIES` controls SDK-level provider retries and can be set to `0` to disable retries; `MAX_OUTPUT_TOKENS` caps each model response; `MAX_PROMPT_CONTEXT_CHARS` limits how much prior agent output is copied into later prompts.
+`REQUEST_TIMEOUT_SECONDS` controls the timeout for each provider request; `PROVIDER_MAX_RETRIES` controls SDK-level provider retries and can be set to `0` to disable retries; `MAX_OUTPUT_TOKENS` caps each model response; `MAX_PROMPT_CONTEXT_CHARS` limits how much prior agent output is copied into later prompts; `MAX_ATTACHMENT_CONTEXT_CHARS` limits how much text from each historical attachment excerpt is copied into follow-up prompts.
 
 `CRITIC_PROVIDER` 和 `MODERATOR_PROVIDER` 可设置为 `auto`、`openai`、`anthropic` 或 `gemini`。默认 `auto` 会按 OpenAI -> Anthropic -> Gemini 的顺序选择已配置 API Key 的服务商；如果自动模式下前一个服务商调用失败，会尝试下一个可用服务商。
 
@@ -251,8 +256,10 @@ http://localhost:8501
 
 1. 启动应用后，页面标题应显示「多 AI 讨论室」。
    After startup, the page title should show "多 AI 讨论室".
-2. 在文本框中输入一个问题，例如「我是否应该把当前单体应用拆成微服务？」。
-   Enter a question, for example: "Should we split the current monolith into microservices?"
+2. 在文本框中输入一个问题，例如「我是否应该把当前单体应用拆成微服务？」；也可以上传一个文本文件或图片作为上下文。
+   Enter a question, for example: "Should we split the current monolith into microservices?"; you can also upload a text file or image as context.
+   上传限制会显示在上传控件提示中；`.env`、私钥和凭据类文件会被拒绝。
+   Upload limits are shown in the uploader help text; `.env`, private-key, and credential-like files are rejected.
 3. 点击「开始讨论」。
    Click "开始讨论".
 4. 页面应依次显示讨论过程、GPT/Claude/Gemini 首轮观点、三段交叉回应、Critic Agent 和最终结论。
@@ -314,6 +321,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the agent flow, state manag
   This is a local app, but it calls OpenAI, Anthropic, and Google Gemini based on your `.env` configuration.
 - 用户输入的问题和各 Agent 的中间回答会发送给对应模型服务商。
   User questions and intermediate agent outputs may be sent to the configured model providers.
+- 上传附件中的文本摘录、支持格式的图片、以及追问时保留的历史附件摘要也可能发送给对应模型服务商；附件内容会作为不可信资料处理，而不是可执行指令。
+  Text excerpts from uploads, supported images, and historical attachment summaries kept for follow-up prompts may also be sent to configured model providers; attachment contents are treated as untrusted reference material, not executable instructions.
 - 不要输入不应发送给第三方模型服务的机密信息、个人敏感信息或受保护数据。
   Do not enter confidential, personal, or protected data that should not be sent to third-party model services.
 - 模型调用可能产生 API 费用，费用由你配置的 API Key 所属账号承担。
@@ -393,6 +402,7 @@ Example skeleton:
 
 ```python
 from agents.base import BaseAgent
+from utils.agent_errors import call_failed_message
 
 
 class NewAgent(BaseAgent):
@@ -406,7 +416,7 @@ class NewAgent(BaseAgent):
         try:
             return "这里返回模型输出"
         except Exception as exc:
-            return f"{self.name} 调用失败：{exc}"
+            return call_failed_message(self.name, exc)
 ```
 
 ## 安全注意事项 / Security Notes

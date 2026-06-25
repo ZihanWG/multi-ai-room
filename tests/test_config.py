@@ -9,6 +9,7 @@ from utils.config import (
     DEFAULT_CLAUDE_MODEL,
     DEFAULT_CRITIC_PROVIDER,
     DEFAULT_GEMINI_MODEL,
+    DEFAULT_MAX_ATTACHMENT_CONTEXT_CHARS,
     DEFAULT_MAX_OUTPUT_TOKENS,
     DEFAULT_MAX_PROMPT_CONTEXT_CHARS,
     DEFAULT_MODERATOR_PROVIDER,
@@ -45,6 +46,10 @@ class SettingsTests(unittest.TestCase):
             settings.max_prompt_context_chars,
             DEFAULT_MAX_PROMPT_CONTEXT_CHARS,
         )
+        self.assertEqual(
+            settings.max_attachment_context_chars,
+            DEFAULT_MAX_ATTACHMENT_CONTEXT_CHARS,
+        )
         self.assertEqual(settings.critic_provider, DEFAULT_CRITIC_PROVIDER)
         self.assertEqual(settings.moderator_provider, DEFAULT_MODERATOR_PROVIDER)
 
@@ -62,6 +67,7 @@ class SettingsTests(unittest.TestCase):
             "PROVIDER_MAX_RETRIES": "0",
             "MAX_OUTPUT_TOKENS": "900",
             "MAX_PROMPT_CONTEXT_CHARS": "1400",
+            "MAX_ATTACHMENT_CONTEXT_CHARS": "700",
             "CRITIC_PROVIDER": "anthropic",
             "MODERATOR_PROVIDER": "gemini",
         },
@@ -81,6 +87,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.provider_max_retries, 0)
         self.assertEqual(settings.max_output_tokens, 900)
         self.assertEqual(settings.max_prompt_context_chars, 1400)
+        self.assertEqual(settings.max_attachment_context_chars, 700)
         self.assertEqual(settings.critic_provider, "anthropic")
         self.assertEqual(settings.moderator_provider, "gemini")
 
@@ -94,6 +101,7 @@ class SettingsTests(unittest.TestCase):
             "PROVIDER_MAX_RETRIES": "-1",
             "MAX_OUTPUT_TOKENS": "not-a-number",
             "MAX_PROMPT_CONTEXT_CHARS": "0",
+            "MAX_ATTACHMENT_CONTEXT_CHARS": "bad",
             "CRITIC_PROVIDER": "not-real",
             "MODERATOR_PROVIDER": "not-real",
         },
@@ -114,6 +122,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(
             settings.max_prompt_context_chars,
             DEFAULT_MAX_PROMPT_CONTEXT_CHARS,
+        )
+        self.assertEqual(
+            settings.max_attachment_context_chars,
+            DEFAULT_MAX_ATTACHMENT_CONTEXT_CHARS,
         )
         self.assertEqual(settings.critic_provider, DEFAULT_CRITIC_PROVIDER)
         self.assertEqual(settings.moderator_provider, DEFAULT_MODERATOR_PROVIDER)

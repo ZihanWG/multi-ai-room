@@ -19,6 +19,7 @@ DEFAULT_REQUEST_TIMEOUT_SECONDS = 60.0
 DEFAULT_PROVIDER_MAX_RETRIES = 2
 DEFAULT_MAX_OUTPUT_TOKENS = 1200
 DEFAULT_MAX_PROMPT_CONTEXT_CHARS = 1800
+DEFAULT_MAX_ATTACHMENT_CONTEXT_CHARS = 1200
 DEFAULT_CRITIC_PROVIDER = "auto"
 DEFAULT_MODERATOR_PROVIDER = "auto"
 SUPPORTED_REVIEW_PROVIDERS = {"auto", "openai", "anthropic", "gemini"}
@@ -47,6 +48,7 @@ class Settings:
     provider_max_retries: int
     max_output_tokens: int
     max_prompt_context_chars: int
+    max_attachment_context_chars: int
     critic_provider: str
     moderator_provider: str
 
@@ -165,6 +167,10 @@ def get_settings() -> Settings:
         max_prompt_context_chars=read_positive_int_env(
             "MAX_PROMPT_CONTEXT_CHARS",
             DEFAULT_MAX_PROMPT_CONTEXT_CHARS,
+        ),
+        max_attachment_context_chars=read_positive_int_env(
+            "MAX_ATTACHMENT_CONTEXT_CHARS",
+            DEFAULT_MAX_ATTACHMENT_CONTEXT_CHARS,
         ),
         critic_provider=read_provider_env("CRITIC_PROVIDER", DEFAULT_CRITIC_PROVIDER),
         moderator_provider=read_provider_env(

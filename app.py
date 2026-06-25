@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import streamlit as st
 
 from styles import apply_page_styles
+from utils.attachments import (
+    STREAMLIT_UPLOAD_FILE_TYPES,
+    AttachmentValidationError,
+    PreparedAttachment,
+    attachment_records_from_prepared,
+    build_question_with_attachments,
+    coerce_attachment_records,
+    format_file_size,
+    prepare_uploaded_files,
+    upload_limits_summary,
+)
 from utils.config import get_settings
 from utils.conversation import build_follow_up_prompt, coerce_outputs
 from utils.discussion_runner import DiscussionEvent, run_discussion_flow
@@ -154,18 +166,26 @@ def get_discussion_turns() -> list[dict[str, object]]:
     return st.session_state[SESSION_TURNS_KEY]
 
 
-def save_discussion_turn(question: str, outputs: dict[str, str]) -> None:
+def save_discussion_turn(
+    question: str,
+    outputs: dict[str, str],
+    *,
+    attachments: Sequence[Mapping[str, object]] | None = None,
+) -> None:
     """Persist one discussion turn in Streamlit session state."""
 
     stored_outputs = outputs.copy()
+    stored_attachments = coerce_attachment_records(attachments or [])
+    turn: dict[str, object] = {
+        "question": question,
+        "outputs": stored_outputs,
+    }
+    if stored_attachments:
+        turn["attachments"] = stored_attachments
+
     st.session_state[SESSION_QUESTION_KEY] = question
     st.session_state[SESSION_OUTPUTS_KEY] = stored_outputs
-    st.session_state[SESSION_TURNS_KEY].append(
-        {
-            "question": question,
-            "outputs": stored_outputs,
-        }
-    )
+    st.session_state[SESSION_TURNS_KEY].append(turn)
 
 
 def render_hero() -> None:
@@ -324,7 +344,79 @@ def render_final_answer(content: str) -> None:
         st.markdown(content or "Moderator Agent 无输出")
 
 
-def render_export_button(question: str, outputs: dict[str, str], *, key: str) -> None:
+def render_prepared_attachments(
+    attachments: Sequence[PreparedAttachment],
+) -> None:
+    """Render freshly uploaded attachments with image previews."""
+
+    if not attachments:
+        return
+
+    st.markdown("**上传附件**")
+    for attachment in attachments:
+        with st.container(border=True):
+            st.markdown(f"**{attachment.name}**")
+            st.caption(
+                f"{attachment.mime_type or '未知类型'} · "
+                f"{format_file_size(attachment.size_bytes)}"
+            )
+
+            if attachment.is_image:
+                st.image(
+                    attachment.content,
+                    caption=attachment.name,
+                    use_container_width=True,
+                )
+            elif attachment.text_excerpt:
+                with st.expander("查看文本摘录", expanded=False):
+                    st.code(attachment.text_excerpt, language="text")
+            else:
+                st.caption("已记录文件信息，未提取文本内容。")
+
+
+def render_attachment_records(
+    attachment_records: Sequence[Mapping[str, object]] | object,
+) -> None:
+    """Render stored attachment metadata for completed turns."""
+
+    records = coerce_attachment_records(attachment_records)
+    if not records:
+        return
+
+    st.markdown("**上传附件**")
+    for record in records:
+        with st.container(border=True):
+            st.markdown(f"**{record['name']}**")
+            st.caption(
+                f"{record['mime_type'] or '未知类型'} · "
+                f"{format_file_size(record['size_bytes'])}"
+            )
+
+            excerpt = str(record.get("text_excerpt", "")).strip()
+            if excerpt:
+                with st.expander("查看文本摘录", expanded=False):
+                    st.code(excerpt, language="text")
+
+
+def render_turn_input(
+    question: str,
+    attachments: Sequence[PreparedAttachment],
+) -> None:
+    """Render the current submitted question and uploads before generation."""
+
+    st.markdown("## 本轮输入")
+    with st.container(border=True):
+        st.markdown(question or "_未输入文字问题_")
+        render_prepared_attachments(attachments)
+
+
+def render_export_button(
+    question: str,
+    outputs: dict[str, str],
+    *,
+    key: str,
+    attachments: Sequence[Mapping[str, object]] | None = None,
+) -> None:
     """Render a Markdown download button for a discussion result."""
 
     if not outputs:
@@ -335,6 +427,7 @@ def render_export_button(question: str, outputs: dict[str, str], *, key: str) ->
         data=build_discussion_markdown(
             question,
             outputs,
+            attachments=attachments,
             agent_order=get_discussion_stage_keys(),
         ),
         file_name="multi-ai-room-discussion.md",
@@ -370,6 +463,7 @@ def render_discussion_result(
     question: str,
     outputs: dict[str, str],
     *,
+    attachment_records: Sequence[Mapping[str, object]] | None = None,
     show_process: bool,
     expand_outputs: bool,
     export_key: str,
@@ -383,6 +477,7 @@ def render_discussion_result(
     with st.container(border=True):
         st.markdown("**原始问题**")
         st.markdown(question or "_未记录原始问题_")
+        render_attachment_records(attachment_records or [])
 
     if show_process:
         timeline_placeholder = st.empty()
@@ -398,7 +493,12 @@ def render_discussion_result(
 
     render_summary_panel(outputs)
     render_final_answer(outputs.get("Moderator Agent", ""))
-    render_export_button(question, outputs, key=export_key)
+    render_export_button(
+        question,
+        outputs,
+        key=export_key,
+        attachments=attachment_records,
+    )
 
 
 def render_conversation_history(
@@ -420,10 +520,12 @@ def render_conversation_history(
     for index, turn in enumerate(turns, start=1):
         question = str(turn.get("question", ""))
         outputs = coerce_outputs(turn.get("outputs"))
+        attachment_records = coerce_attachment_records(turn.get("attachments"))
         render_discussion_result(
             f"### 第 {index} 轮",
             question,
             outputs,
+            attachment_records=attachment_records,
             show_process=show_process and index == len(turns),
             expand_outputs=expand_outputs,
             export_key=f"download_turn_{index}",
@@ -451,32 +553,58 @@ def render_follow_up_form(
             placeholder="例如：如果团队只有两个人，建议会有什么变化？",
             height=120,
         )
+        uploaded_files = st.file_uploader(
+            label="上传文件或图片（可选）",
+            type=STREAMLIT_UPLOAD_FILE_TYPES,
+            accept_multiple_files=True,
+            help=upload_limits_summary(),
+            key="follow_up_uploads",
+        )
         submitted = st.form_submit_button("继续追问", type="primary")
 
     if not submitted:
         return False
 
-    cleaned_question = follow_up_question.strip()
-    if not cleaned_question:
-        st.warning("请先输入追问内容。")
+    try:
+        attachments = prepare_uploaded_files(uploaded_files)
+    except AttachmentValidationError as exc:
+        for message in exc.messages:
+            st.warning(message)
         return False
+    cleaned_question = follow_up_question.strip()
+    if not cleaned_question and not attachments:
+        st.warning("请先输入追问内容或上传附件。")
+        return False
+    if not cleaned_question:
+        cleaned_question = "请结合这次上传的附件继续分析。"
 
-    st.markdown("## 本轮追问")
-    with st.container(border=True):
-        st.markdown(cleaned_question)
+    render_turn_input(cleaned_question, attachments)
 
     settings = get_settings()
     contextual_question = build_follow_up_prompt(
         cleaned_question,
         turns,
         max_chars_per_agent=settings.max_prompt_context_chars,
+        max_chars_per_attachment=settings.max_attachment_context_chars,
     )
-    outputs = run_discussion(
+    discussion_question = build_question_with_attachments(
         contextual_question,
+        attachments,
+    )
+    attachment_records = attachment_records_from_prepared(attachments)
+    outputs = run_discussion(
+        discussion_question,
+        attachments=attachments,
+        display_question=cleaned_question,
+        attachment_records=attachment_records,
         show_process=show_process,
         expand_outputs=expand_outputs,
     )
-    save_discussion_turn(cleaned_question, outputs)
+    save_discussion_turn(
+        cleaned_question,
+        outputs,
+        attachments=attachment_records,
+    )
     return True
 
 
@@ -503,6 +631,9 @@ def render_sidebar_controls() -> tuple[bool, bool]:
         st.caption(f"单次最大输出：{settings.max_output_tokens} tokens")
         st.caption(f"后续上下文上限：{settings.max_prompt_context_chars} 字符/Agent")
         st.caption(
+            f"历史附件摘录上限：{settings.max_attachment_context_chars} 字符/附件"
+        )
+        st.caption(
             f"Critic provider：{settings.critic_provider}；"
             f"Moderator provider：{settings.moderator_provider}"
         )
@@ -522,7 +653,7 @@ def render_sidebar_controls() -> tuple[bool, bool]:
     return show_process, expand_outputs
 
 
-def render_initial_question_form() -> tuple[bool, str]:
+def render_initial_question_form() -> tuple[bool, str, list[object]]:
     """Render the first-turn question form and return submit state."""
 
     st.markdown("### 开始一次讨论")
@@ -533,6 +664,13 @@ def render_initial_question_form() -> tuple[bool, str]:
                 label="请输入你的问题",
                 placeholder="例如：我们是否应该把当前单体应用拆成微服务？",
                 height=180,
+            )
+            uploaded_files = st.file_uploader(
+                label="上传文件或图片（可选）",
+                type=STREAMLIT_UPLOAD_FILE_TYPES,
+                accept_multiple_files=True,
+                help=upload_limits_summary(),
+                key="initial_uploads",
             )
             submitted = st.form_submit_button("开始讨论", type="primary")
 
@@ -548,12 +686,15 @@ def render_initial_question_form() -> tuple[bool, str]:
                 """
             )
 
-    return submitted, question
+    return submitted, question, list(uploaded_files or [])
 
 
 def run_discussion(
     question: str,
     *,
+    attachments: Sequence[PreparedAttachment] | None = None,
+    display_question: str | None = None,
+    attachment_records: Sequence[Mapping[str, object]] | None = None,
     show_process: bool,
     expand_outputs: bool,
 ) -> dict[str, str]:
@@ -616,12 +757,18 @@ def run_discussion(
         outputs = run_discussion_flow(
             question,
             max_context_chars=settings.max_prompt_context_chars,
+            attachments=attachments,
             on_event=handle_discussion_event,
         )
 
     render_summary_panel(outputs)
     render_final_answer(outputs["Moderator Agent"])
-    render_export_button(question, outputs, key="download_current_discussion")
+    render_export_button(
+        display_question or question,
+        outputs,
+        key="download_current_discussion",
+        attachments=attachment_records,
+    )
 
     return outputs
 
@@ -637,19 +784,40 @@ def main() -> None:
     render_agent_board()
 
     current_turn_started = False
-    submitted, question = render_initial_question_form()
+    submitted, question, uploaded_files = render_initial_question_form()
     if submitted:
-        cleaned_question = question.strip()
-        if not cleaned_question:
-            st.warning("请先输入一个问题。")
+        try:
+            attachments = prepare_uploaded_files(uploaded_files)
+        except AttachmentValidationError as exc:
+            for message in exc.messages:
+                st.warning(message)
             return
+        cleaned_question = question.strip()
+        if not cleaned_question and not attachments:
+            st.warning("请先输入一个问题或上传附件。")
+            return
+        if not cleaned_question:
+            cleaned_question = "请分析我上传的附件，指出重点、风险和下一步建议。"
 
-        outputs = run_discussion(
+        render_turn_input(cleaned_question, attachments)
+        discussion_question = build_question_with_attachments(
             cleaned_question,
+            attachments,
+        )
+        attachment_records = attachment_records_from_prepared(attachments)
+        outputs = run_discussion(
+            discussion_question,
+            attachments=attachments,
+            display_question=cleaned_question,
+            attachment_records=attachment_records,
             show_process=show_process,
             expand_outputs=expand_outputs,
         )
-        save_discussion_turn(cleaned_question, outputs)
+        save_discussion_turn(
+            cleaned_question,
+            outputs,
+            attachments=attachment_records,
+        )
         current_turn_started = True
 
     turns = get_discussion_turns()

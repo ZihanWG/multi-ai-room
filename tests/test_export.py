@@ -38,11 +38,39 @@ class ExportTests(unittest.TestCase):
         self.assertIn("### Custom Agent", markdown)
         self.assertIn("_无输出 / No output_", markdown)
 
+    def test_build_discussion_markdown_includes_attachments(self) -> None:
+        markdown = build_discussion_markdown(
+            "测试问题",
+            {"Moderator Agent": "最终结论"},
+            attachments=[
+                {
+                    "name": "notes.txt",
+                    "mime_type": "text/plain",
+                    "size_bytes": 5,
+                    "kind": "text",
+                    "text_excerpt": "hello",
+                    "text_truncated": False,
+                }
+            ],
+        )
+
+        self.assertIn("上传附件", markdown)
+        self.assertIn("notes.txt", markdown)
+        self.assertIn("hello", markdown)
+
     def test_build_conversation_markdown_exports_multiple_turns(self) -> None:
         markdown = build_conversation_markdown(
             [
                 {
                     "question": "第一问",
+                    "attachments": [
+                        {
+                            "name": "image.png",
+                            "mime_type": "image/png",
+                            "size_bytes": 1024,
+                            "kind": "image",
+                        }
+                    ],
                     "outputs": {"Moderator Agent": "第一轮结论"},
                 },
                 {
@@ -54,6 +82,7 @@ class ExportTests(unittest.TestCase):
 
         self.assertIn("第 1 轮 / Turn 1", markdown)
         self.assertIn("第一问", markdown)
+        self.assertIn("image.png", markdown)
         self.assertIn("第一轮结论", markdown)
         self.assertIn("第 2 轮 / Turn 2", markdown)
         self.assertIn("继续追问", markdown)

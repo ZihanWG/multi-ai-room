@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any, cast
+
 from google import genai
 from google.genai import types
 
 from agents.base import BaseAgent
-from agents.provider_calls import gemini_retry_attempts
+from agents.provider_calls import build_gemini_contents, gemini_retry_attempts
 from utils.agent_errors import call_failed_message, missing_key_message
+from utils.attachments import PreparedAttachment
 from utils.config import get_settings
 from utils.demo import build_demo_response
 
@@ -27,7 +31,11 @@ class GeminiAgent(BaseAgent):
         )
         self.settings = get_settings()
 
-    def run(self, question: str) -> str:
+    def run(
+        self,
+        question: str,
+        attachments: Sequence[PreparedAttachment] | None = None,
+    ) -> str:
         """Generate a Gemini Agent response for the user's question."""
 
         if getattr(self.settings, "demo_mode", False):
@@ -50,7 +58,7 @@ class GeminiAgent(BaseAgent):
             )
             response = client.models.generate_content(
                 model=self.settings.gemini_model,
-                contents=question,
+                contents=cast(Any, build_gemini_contents(question, attachments)),
                 config=types.GenerateContentConfig(
                     system_instruction=self.role_prompt,
                     max_output_tokens=self.settings.max_output_tokens,

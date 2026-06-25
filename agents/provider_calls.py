@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Literal, cast
+from collections.abc import Sequence
+from typing import Any, Literal, cast
 
 from anthropic import Anthropic
 from google import genai
 from google.genai import types
 from openai import OpenAI
 
+from utils.attachments import (
+    PreparedAttachment,
+    data_url_for_attachment,
+    model_image_attachments,
+)
 from utils.config import Settings
 
 ProviderName = Literal["openai", "anthropic", "gemini"]
@@ -79,6 +85,83 @@ def gemini_retry_attempts(provider_max_retries: int) -> int:
     """Convert retry count into Gemini HTTP attempts including the first request."""
 
     return max(1, provider_max_retries + 1)
+
+
+def build_openai_user_content(
+    user_prompt: str,
+    attachments: Sequence[PreparedAttachment] | None = None,
+) -> Any:
+    """Build OpenAI Responses content with optional image inputs."""
+
+    image_attachments = model_image_attachments(attachments, provider="openai")
+    if not image_attachments:
+        return user_prompt
+
+    return [
+        {"type": "input_text", "text": user_prompt},
+        *[
+            {
+                "type": "input_image",
+                "image_url": data_url_for_attachment(attachment),
+            }
+            for attachment in image_attachments
+        ],
+    ]
+
+
+def build_anthropic_user_content(
+    user_prompt: str,
+    attachments: Sequence[PreparedAttachment] | None = None,
+) -> Any:
+    """Build Anthropic Messages content with optional image inputs."""
+
+    image_attachments = model_image_attachments(attachments, provider="anthropic")
+    if not image_attachments:
+        return user_prompt
+
+    return [
+        {"type": "text", "text": user_prompt},
+        *[
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": attachment.mime_type,
+                    "data": data_url_for_attachment(attachment).split(",", maxsplit=1)[
+                        1
+                    ],
+                },
+            }
+            for attachment in image_attachments
+        ],
+    ]
+
+
+def build_gemini_contents(
+    user_prompt: str,
+    attachments: Sequence[PreparedAttachment] | None = None,
+) -> Any:
+    """Build Gemini contents with optional image parts."""
+
+    image_attachments = model_image_attachments(attachments, provider="gemini")
+    if not image_attachments:
+        return user_prompt
+
+    return [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part.from_text(text=user_prompt),
+                *[
+                    types.Part.from_bytes(
+                        data=attachment.content,
+                        mime_type=attachment.mime_type,
+                    )
+                    for attachment in image_attachments
+                ],
+            ],
+        )
+    ]
 
 
 def generate_with_provider(

@@ -17,7 +17,9 @@ This project is intentionally small and clear. The app has four main layers:
 
 ```mermaid
 flowchart TD
-    User["用户输入问题 / User enters a question"] --> UI["Streamlit app.py"]
+    User["用户输入问题和可选附件 / User enters a question and optional uploads"] --> UI["Streamlit app.py"]
+    UI --> Attachments["utils/attachments.py"]
+    Attachments --> UI
     UI --> Runner["utils/discussion_runner.py"]
     Runner --> GPT["OpenAIAgent"]
     Runner --> Claude["ClaudeAgent"]
@@ -79,10 +81,16 @@ The saved values are:
 - `discussion_question`
 - `discussion_outputs`
 - `discussion_turns`
+- 每轮可选的 `attachments` 元数据和文本摘录
+  Optional per-turn `attachments` metadata and text excerpts
 
 `discussion_turns` 保存同一窗口中的多轮问题和 Agent 输出。追问时，`utils/conversation.py` 会把最近几轮讨论转换为上下文提示词，再交给当前 Agent 流程。
 
 `discussion_turns` stores multiple questions and agent outputs in the same window. For follow-up questions, `utils/conversation.py` converts recent turns into a contextual prompt before passing it into the current agent flow.
+
+上传附件由 `utils/attachments.py` 预处理。该模块会先限制文件数量、单文件大小、图片大小和总大小，并拒绝 `.env`、私钥、凭据等疑似敏感文件。文本、Markdown、CSV、JSON 和常见代码文件会被解码并截断为 prompt 摘录；常见图片会先通过文件签名校验，校验通过后在 UI 中预览，并按 provider-specific allowlist 作为多模态内容传给 GPT、Claude 和 Gemini 的首轮调用。附件内容会在 prompt 中标记为不可信用户资料，不会被当作系统或开发者指令。追问时，历史附件摘录会按 `MAX_ATTACHMENT_CONTEXT_CHARS` 再次截断，避免多轮附件上下文无限膨胀。后续交叉回应、Critic 和 Moderator 主要读取首轮输出和文本上下文。
+
+Uploads are preprocessed by `utils/attachments.py`. The module first enforces file-count, per-file, image-size, and total-size limits, and rejects likely sensitive files such as `.env`, private keys, and credentials. Text, Markdown, CSV, JSON, and common code files are decoded and truncated into prompt excerpts; common images are validated by file signature, previewed in the UI when valid, and sent to GPT, Claude, and Gemini first-round calls according to provider-specific allowlists. Attachment contents are marked in prompts as untrusted user material, not as system or developer instructions. In follow-up prompts, historical attachment excerpts are truncated again with `MAX_ATTACHMENT_CONTEXT_CHARS` so multi-turn attachment context cannot grow without bound. Later peer-response, Critic, and Moderator stages primarily consume first-round outputs and textual context.
 
 ## 外部服务 / External Services
 
@@ -114,6 +122,10 @@ If `DEMO_MODE=true`, agents return local deterministic sample responses from `ut
 单轮讨论和整段对话都可以通过 `utils/export.py` 转换为 Markdown。Streamlit UI 使用同一个工具函数提供下载按钮，因此导出逻辑可以独立测试。
 
 Single-turn discussions and full conversations can be converted to Markdown through `utils/export.py`. The Streamlit UI uses the same helper to provide download buttons, so export behavior can be tested independently.
+
+导出内容包含附件元数据和文本摘录，但不包含原始二进制文件内容。
+
+Exports include attachment metadata and text excerpts, but not raw binary file contents.
 
 ## 非目标 / Non-Goals
 

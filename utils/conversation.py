@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from utils.attachments import build_attachment_record_context
 from utils.prompts import CONTINUE_INSTRUCTION, FOLLOW_UP_QUESTION_MARKER
 
 DEFAULT_CONTEXT_AGENT_ORDER = (
@@ -50,6 +51,7 @@ def build_follow_up_prompt(
     *,
     max_turns: int = 3,
     max_chars_per_agent: int = 1200,
+    max_chars_per_attachment: int = 1200,
 ) -> str:
     """Build a contextual prompt for a follow-up question."""
 
@@ -59,6 +61,10 @@ def build_follow_up_prompt(
 
     for index, turn in enumerate(selected_turns, start=1):
         question = str(turn.get("question", "")).strip() or "未记录问题"
+        attachment_context = build_attachment_record_context(
+            turn.get("attachments", []),
+            max_chars_per_attachment=max_chars_per_attachment,
+        )
         outputs = coerce_outputs(turn.get("outputs"))
         output_lines = []
 
@@ -69,16 +75,16 @@ def build_follow_up_prompt(
                 f"### {agent_name}\n{truncate_text(outputs[agent_name], max_chars_per_agent)}"
             )
 
-        history_blocks.append(
-            "\n\n".join(
-                [
-                    f"## 历史第 {index} 轮",
-                    f"用户问题：{question}",
-                    "Agent 输出摘要：",
-                    "\n\n".join(output_lines) or "无可用输出。",
-                ]
-            )
-        )
+        history_parts = [
+            f"## 历史第 {index} 轮",
+            f"用户问题：{question}",
+            "Agent 输出摘要：",
+            "\n\n".join(output_lines) or "无可用输出。",
+        ]
+        if attachment_context:
+            history_parts.append(attachment_context)
+
+        history_blocks.append("\n\n".join(history_parts))
 
     history = "\n\n---\n\n".join(history_blocks) or "暂无历史讨论。"
 

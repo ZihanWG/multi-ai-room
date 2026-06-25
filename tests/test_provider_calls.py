@@ -7,11 +7,15 @@ from unittest.mock import patch
 
 from agents.provider_calls import (
     available_providers,
+    build_anthropic_user_content,
+    build_gemini_contents,
+    build_openai_user_content,
     gemini_retry_attempts,
     missing_any_provider_message,
     provider_env_var,
     resolve_provider_sequence,
 )
+from utils.attachments import PreparedAttachment
 from utils.config import get_settings
 
 
@@ -56,6 +60,26 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual(gemini_retry_attempts(0), 1)
         self.assertEqual(gemini_retry_attempts(2), 3)
         self.assertEqual(gemini_retry_attempts(-1), 1)
+
+    def test_multimodal_content_builders_include_image_parts(self) -> None:
+        attachment = PreparedAttachment(
+            name="diagram.png",
+            mime_type="image/png",
+            size_bytes=3,
+            content=b"\x89PNG\r\n\x1a\nabc",
+            kind="image",
+        )
+
+        openai_content = build_openai_user_content("question", [attachment])
+        anthropic_content = build_anthropic_user_content("question", [attachment])
+        gemini_contents = build_gemini_contents("question", [attachment])
+
+        self.assertIsInstance(openai_content, list)
+        self.assertEqual(openai_content[1]["type"], "input_image")
+        self.assertIsInstance(anthropic_content, list)
+        self.assertEqual(anthropic_content[1]["type"], "image")
+        self.assertIsInstance(gemini_contents, list)
+        self.assertEqual(gemini_contents[0].parts[0].text, "question")
 
 
 if __name__ == "__main__":
